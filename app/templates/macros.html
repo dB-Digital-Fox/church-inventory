@@ -47,7 +47,7 @@
       {% if h.changes_dict %}
       <table class="diff">
         {% for field, pair in h.changes_dict.items() %}
-        <tr><th>{{ _(field) }}</th><td class="old">{{ pair[0] if pair[0] is not none else '—' }}</td><td>→</td><td class="new">{{ pair[1] if pair[1] is not none else '—' }}</td></tr>
+        <tr><th>{{ _(field) }}</th><td class="old">{{ fmt_value(field, pair[0]) }}</td><td>→</td><td class="new">{{ fmt_value(field, pair[1]) }}</td></tr>
         {% endfor %}
       </table>
       {% endif %}

@@ -15,6 +15,19 @@ It runs in a single Docker container with an SQLite database and is light enough
 
 License: **GNU AGPL-3.0**. You can use, change and share it freely. If you run a modified version for others, you must share your changes (the app links to its source code in the footer).
 
+## Screenshots
+
+![Overview with approvals, overdue returns, upcoming events and recent activity](docs/screenshots/dashboard.png)
+
+| | |
+|---|---|
+| **Inventory** with photos, categories, locations and condition<br>![Inventory](docs/screenshots/inventory.png) | **Item detail** with QR code, reservations and the full change history<br>![Item](docs/screenshots/item.png) |
+| **Event** with participants, write-up, photos and items used<br>![Event](docs/screenshots/event.png) | **Events log**, filterable by type, person and date<br>![Events](docs/screenshots/events.png) |
+| **Clash warning** while booking, shown live as you pick the time<br>![Reservation clash](docs/screenshots/reservation-clash.png) | **Reservations** with clashes highlighted<br>![Reservations](docs/screenshots/reservations.png) |
+| **Audit log**: who changed what and when, before → after, with integrity check<br>![Audit log](docs/screenshots/audit-log.png) | **People** and how many events each person did<br>![People](docs/screenshots/people.png) |
+| **Calendar link** for Google, Outlook and iPhone<br>![Calendar](docs/screenshots/calendar.png) | **Printable QR labels**<br>![QR labels](docs/screenshots/qr-labels.png) |
+| **Slovak interface**<br>![Slovak](docs/screenshots/inventory-sk.png) | **Phone, dark mode**<br><img src="docs/screenshots/mobile-dark.png" alt="Mobile" width="260"> |
+
 ---
 
 ## Roles
@@ -114,6 +127,15 @@ docker compose exec app flask --app app verify-audit           # check the hash 
 docker compose exec app flask --app app backup                 # back up now
 docker compose exec app flask --app app reset-password daniel  # locked out? temporary password
 ```
+
+## Try it with demo data
+
+```bash
+DATA_DIR=./demo-data python scripts/seed_demo.py     # sample items, events, people, reservations
+DATA_DIR=./demo-data flask --app wsgi run            # log in as admin / demo password 1
+```
+
+The screenshots above come from this demo data (`scripts/screenshots.js` regenerates them).
 
 ## Development
 

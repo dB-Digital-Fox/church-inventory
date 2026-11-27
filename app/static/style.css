@@ -47,7 +47,8 @@ code { font-size: .85em; word-break: break-all; }
 @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
 .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+@media (max-width: 600px) { .stats { gap: .5rem; } .stat { padding: .6rem; font-size: .8rem; } .stat b { font-size: 1.4rem; } }
 .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; text-decoration: none; color: var(--text); }
 .stat b { display: block; font-size: 1.8rem; color: var(--accent); }
 .listrow { padding: .35rem 0; border-bottom: 1px solid var(--line); }
@@ -136,3 +137,4 @@ code.big { font-size: 1.3rem; }
 .pager { display: flex; gap: 1rem; justify-content: center; }
 .footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 2rem 1rem; }
 .footer .linkbutton { padding: 0; }
+table.audit td:nth-child(5) { min-width: 15rem; }

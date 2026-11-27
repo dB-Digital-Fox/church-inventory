@@ -32,7 +32,7 @@
     <td>{{ a.username }}{% if a.ip %}<br><small class="muted">{{ a.ip }}</small>{% endif %}</td>
     <td><span class="action a-{{ a.action }}">{{ _(a.action) }}</span></td>
     <td>{% set link = entity_url(a.entity, a.entity_id) %}{{ _(a.entity) }}{% if a.entity_id %} {% if link %}<a href="{{ link }}">#{{ a.entity_id }}</a>{% else %}#{{ a.entity_id }}{% endif %}{% endif %}<br><small>{{ a.summary }}</small></td>
-    <td>{% if a.changes_dict %}<table class="diff">{% for field, pair in a.changes_dict.items() %}<tr><th>{{ _(field) }}</th><td class="old">{{ pair[0] if pair[0] is not none else '—' }}</td><td>→</td><td class="new">{{ pair[1] if pair[1] is not none else '—' }}</td></tr>{% endfor %}</table>{% endif %}</td>
+    <td>{% if a.changes_dict %}<table class="diff">{% for field, pair in a.changes_dict.items() %}<tr><th>{{ _(field) }}</th><td class="old">{{ fmt_value(field, pair[0]) }}</td><td>→</td><td class="new">{{ fmt_value(field, pair[1]) }}</td></tr>{% endfor %}</table>{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

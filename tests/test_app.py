@@ -306,3 +306,19 @@ def test_pages_render(admin, app):
             r = admin.get(url)
             assert r.status_code == 200, (lang, url)
             assert "built-in method" not in r.get_data(as_text=True), (lang, url)
+
+
+def test_english_labels_for_internal_codes():
+    from app.translations_en import EN
+    from .extract_strings import DYNAMIC
+    raw = sorted(code for code in DYNAMIC if "_" in code and code not in EN)
+    assert not raw, f"codes shown raw in English: {raw}"
+
+
+def test_handed_out_status_is_readable(admin):
+    item_id = add_item(admin, "Lamp")
+    r = reserve(admin, item_id, "2026-12-01T10:00", "2026-12-01T12:00")
+    rid = int(r.headers["Location"].split("/")[-1])
+    admin.post(f"/reservations/{rid}/status", {"action": "checkout"})
+    page = admin.get(f"/reservations/{rid}").get_data(as_text=True)
+    assert "handed out" in page and ">checked_out<" not in page

@@ -15,8 +15,8 @@
     <dt>{{ _('Date') }}</dt><dd>{{ event.event_date|local }}{% if event.start_time %}, {{ event.start_time }}{% if event.end_time %}–{{ event.end_time }}{% endif %}{% endif %}</dd>
     <dt>{{ _('Location') }}</dt><dd>{{ event.location or '—' }}</dd>
     <dt>{{ _('Who took part / did it') }}</dt><dd>
-      {% for p in people %}<a href="{{ url_for('users.detail', user_id=p.id) }}">{{ p.full_name }}</a>{{ ', ' if not loop.last }}{% endfor %}
-      {% if event.other_participants %}{% if people %}, {% endif %}{{ event.other_participants }}{% endif %}
+      {% for p in people %}<a href="{{ url_for('users.detail', user_id=p.id) }}">{{ p.full_name }}</a>{{ ', ' if not loop.last }}{% endfor -%}
+      {%- if event.other_participants %}{% if people %}, {% endif %}{{ event.other_participants }}{% endif %}
       {% if not people and not event.other_participants %}—{% endif %}
     </dd>
     <dt>{{ _('Logged by') }}</dt><dd>{{ event.creator_name or '—' }}</dd>

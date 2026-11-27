@@ -1,6 +1,7 @@
 """Slovak / English. Source strings are English; SK holds the Slovak translations."""
 from flask import current_app, g, has_request_context, session
 
+from .translations_en import EN
 from .translations_sk import SK
 
 LANGUAGES = {"sk": "Slovenčina", "en": "English"}
@@ -19,7 +20,7 @@ def current_lang():
 
 def translate(text, lang=None, **kwargs):
     lang = lang or current_lang()
-    out = SK.get(text, text) if lang == "sk" else text
+    out = SK.get(text, text) if lang == "sk" else EN.get(text, text)
     return out.format(**kwargs) if kwargs else out
 
 
@@ -31,3 +32,17 @@ def type_name(row, lang=None):
     """Localised name of an event type row."""
     lang = lang or current_lang()
     return row["name_sk"] if lang == "sk" else row["name_en"]
+
+
+CODE_FIELDS = {"status", "condition", "return_condition", "role"}
+
+
+def fmt_value(field, value):
+    """Human-readable value for the change history (translated codes, lists joined)."""
+    if value is None or value == "":
+        return "—"
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value) or "—"
+    if field in CODE_FIELDS and isinstance(value, str):
+        return _(value)
+    return value

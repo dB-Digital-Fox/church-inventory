@@ -23,7 +23,7 @@
   <tr>
     <td>{{ a.id }}</td><td>{{ a.ts|dt }}</td><td>{{ a.username }}</td><td>{{ _(a.action) }}</td>
     <td>{{ _(a.entity) }}{% if a.entity_id %} #{{ a.entity_id }}{% endif %}<br>{{ a.summary }}</td>
-    <td>{% for field, pair in a.changes_dict.items() %}<div><b>{{ _(field) }}</b>: {{ pair[0] if pair[0] is not none else '—' }} → {{ pair[1] if pair[1] is not none else '—' }}</div>{% endfor %}</td>
+    <td>{% for field, pair in a.changes_dict.items() %}<div><b>{{ _(field) }}</b>: {{ fmt_value(field, pair[0]) }} → {{ fmt_value(field, pair[1]) }}</div>{% endfor %}</td>
     <td><code>{{ a.hash[:16] }}…</code></td>
   </tr>
   {% endfor %}

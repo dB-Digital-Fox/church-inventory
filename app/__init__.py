@@ -117,6 +117,7 @@ def create_app(overrides=None):
             "can": auth.can,
             "csrf_token": auth.csrf_token,
             "type_name": i18n.type_name,
+            "fmt_value": i18n.fmt_value,
             "org_name": app.config["ORG_NAME"],
             "source_url": app.config["SOURCE_URL"],
             "version": __version__,
