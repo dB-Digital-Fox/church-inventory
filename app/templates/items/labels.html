@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{{ _('QR labels') }} · {{ org_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='labels.css') }}?v={{ version }}">
+<script src="{{ url_for('static', filename='app.js') }}?v={{ version }}" defer></script>
+</head>
+<body>
+<div class="noprint bar">
+  <a href="{{ url_for('items.index') }}">← {{ _('Inventory') }}</a>
+  <form method="get">
+    {% for r in rows %}<input type="hidden" name="id" value="{{ r.id }}">{% endfor %}
+    <label>{{ _('Copies of each') }} <input type="number" name="copies" min="1" max="20" value="{{ copies }}"></label>
+    <button>OK</button>
+  </form>
+  <button class="print">🖨 {{ _('Print') }}</button>
+</div>
+<div class="sheet">
+{% for r in rows %}{% for _i in range(copies) %}
+  <div class="label">
+    <img src="{{ url_for('items.qr', item_id=r.id) }}" alt="">
+    <div><strong>{{ r.name }}</strong><br>#{{ r.id }}{% if r.location %} · {{ r.location }}{% endif %}<br><small>{{ org_name }}</small></div>
+  </div>
+{% endfor %}{% endfor %}
+</div>
+</body>
+</html>

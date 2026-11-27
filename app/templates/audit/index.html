@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Audit log') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Audit log') }}</h1>
+  <div class="actions">
+    <form method="post" action="{{ url_for('audit.verify') }}" class="inline">{{ m.csrf() }}<button class="primary">🔒 {{ _('Verify integrity') }}</button></form>
+    <a class="button" href="{{ url_for('audit.export_csv', **args) }}">CSV</a>
+    <a class="button" href="{{ url_for('audit.report', **args) }}" target="_blank">🖨 {{ _('Printable report') }}</a>
+  </div>
+</div>
+<p class="muted">{{ _('Every change is recorded here and cannot be edited or deleted. Each entry is linked to the previous one with a SHA-256 fingerprint, so any later change to the history is detected by “Verify integrity”.') }}</p>
+{% if last %}<p class="fingerprint">{{ _('Latest fingerprint') }} (#{{ last.id }}, {{ last.ts|dt }}): <code>{{ last.hash }}</code></p>{% endif %}
+<form class="filters" method="get">
+  <input name="q" value="{{ args.q }}" placeholder="{{ _('Search') }}…">
+  <select name="entity"><option value="">{{ _('Everything') }}</option>{% for e in entities %}<option value="{{ e }}" {{ 'selected' if args.entity == e }}>{{ _(e) }}</option>{% endfor %}</select>
+  <select name="action"><option value="">{{ _('All actions') }}</option>{% for a in actions %}<option value="{{ a }}" {{ 'selected' if args.action == a }}>{{ _(a) }}</option>{% endfor %}</select>
+  <select name="user"><option value="">{{ _('Everyone') }}</option>{% for u in users %}<option {{ 'selected' if args.user == u }}>{{ u }}</option>{% endfor %}</select>
+  <label>{{ _('From') }} <input type="date" name="from" value="{{ args['from'] }}"></label>
+  <label>{{ _('To') }} <input type="date" name="to" value="{{ args.to }}"></label>
+  <button>{{ _('Filter') }}</button>
+</form>
+<p class="muted">{{ _('{n} entries', n=total) }}</p>
+<div class="tablewrap"><table class="audit">
+  <thead><tr><th>#</th><th>{{ _('Time') }}</th><th>{{ _('Who') }}</th><th>{{ _('Action') }}</th><th>{{ _('Record') }}</th><th>{{ _('Changes') }}</th></tr></thead>
+  <tbody>
+  {% for a in rows %}
+  <tr>
+    <td>{{ a.id }}</td>
+    <td class="nowrap">{{ a.ts|dt }}</td>
+    <td>{{ a.username }}{% if a.ip %}<br><small class="muted">{{ a.ip }}</small>{% endif %}</td>
+    <td><span class="action a-{{ a.action }}">{{ _(a.action) }}</span></td>
+    <td>{% set link = entity_url(a.entity, a.entity_id) %}{{ _(a.entity) }}{% if a.entity_id %} {% if link %}<a href="{{ link }}">#{{ a.entity_id }}</a>{% else %}#{{ a.entity_id }}{% endif %}{% endif %}<br><small>{{ a.summary }}</small></td>
+    <td>{% if a.changes_dict %}<table class="diff">{% for field, pair in a.changes_dict.items() %}<tr><th>{{ _(field) }}</th><td class="old">{{ pair[0] if pair[0] is not none else '—' }}</td><td>→</td><td class="new">{{ pair[1] if pair[1] is not none else '—' }}</td></tr>{% endfor %}</table>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if pages > 1 %}
+<p class="pager">
+  {% if page > 1 %}<a href="{{ url_for('audit.index', page=page-1, **args) }}">← {{ _('Newer') }}</a>{% endif %}
+  {{ page }} / {{ pages }}
+  {% if page < pages %}<a href="{{ url_for('audit.index', page=page+1, **args) }}">{{ _('Older') }} →</a>{% endif %}
+</p>
+{% endif %}
+{% endblock %}

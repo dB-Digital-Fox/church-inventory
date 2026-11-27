@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}{{ error.code }}{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>{{ error.code }}</h1>
+  <p>{% if error.code == 403 %}{{ _('You do not have permission to do this.') }}{% elif error.code == 404 %}{{ _('Not found.') }}{% elif error.code == 413 %}{{ _('The upload is too large.') }}{% else %}{{ error.description }}{% endif %}</p>
+  <p><a href="{{ url_for('main.dashboard') }}">← {{ _('Overview') }}</a></p>
+</div>
+{% endblock %}

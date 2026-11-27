@@ -1,0 +1,8 @@
+body { font-family: system-ui, sans-serif; font-size: 10pt; margin: 1.5rem; color: #111; }
+h1 { font-size: 16pt; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+th, td { border: 1px solid #d1d5db; padding: 3px 5px; text-align: left; vertical-align: top; }
+table.meta th { width: 12rem; background: #f3f4f6; }
+table.log thead th { background: #f3f4f6; }
+code { font-size: 8.5pt; word-break: break-all; }
+@media print { .noprint { display: none; } @page { size: A4 landscape; margin: 10mm; } thead { display: table-header-group; } tr { break-inside: avoid; } }

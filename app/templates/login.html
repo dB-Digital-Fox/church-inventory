@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Log in') }}{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>✝ {{ org_name }}</h1>
+  <form method="post">
+    {{ m.csrf() }}
+    <label>{{ _('Username') }}<input name="username" autocomplete="username" required autofocus></label>
+    <label>{{ _('Password') }}<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="primary">{{ _('Log in') }}</button>
+  </form>
+</div>
+{% endblock %}

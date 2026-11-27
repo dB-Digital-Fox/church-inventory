@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('People') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('People') }}</h1>
+  <div class="actions">{% if can('admin') %}<a class="button primary" href="{{ url_for('users.new') }}">+ {{ _('Add person') }}</a>{% endif %}</div>
+</div>
+<div class="tablewrap"><table>
+  <thead><tr><th>{{ _('Full name') }}</th><th>{{ _('Role') }}</th><th>{{ _('Events') }}</th><th>{{ _('Last event') }}</th>{% if can('admin') %}<th>{{ _('Username') }}</th><th></th>{% endif %}</tr></thead>
+  <tbody>
+  {% for u in rows %}
+  <tr class="{{ 'archived' if not u.active }}">
+    <td><a href="{{ url_for('users.detail', user_id=u.id) }}">{{ u.full_name }}</a>{% if not u.active %} <span class="status s-cancelled">{{ _('inactive') }}</span>{% endif %}</td>
+    <td>{{ _(u.role) }}</td><td>{{ u.event_count }}</td><td>{{ u.last_event|local }}</td>
+    {% if can('admin') %}<td>{{ u.username }}</td><td><a href="{{ url_for('users.edit', user_id=u.id) }}">{{ _('Edit') }}</a></td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<details class="card">
+  <summary>{{ _('What can each role do?') }}</summary>
+  <ul>
+    <li><strong>{{ _('admin') }}</strong>: {{ _('everything, including people, settings and backups') }}</li>
+    <li><strong>{{ _('manager') }}</strong>: {{ _('manage inventory, approve and hand out reservations, edit any event, see the audit log') }}</li>
+    <li><strong>{{ _('member') }}</strong>: {{ _('log events, edit own events, request reservations') }}</li>
+    <li><strong>{{ _('auditor') }}</strong>: {{ _('read-only access to everything, including the audit log and exports') }}</li>
+  </ul>
+</details>
+{% endblock %}

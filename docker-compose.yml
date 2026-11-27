@@ -1,0 +1,27 @@
+services:
+  app:
+    image: church-inventory:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      BACKUP_DIR: /backups
+    volumes:
+      - ./data:/data
+      - ${BACKUP_PATH:-./backups}:/backups
+    ports:
+      # Reachable on the local network at http://<device-ip>:8000
+      - "8000:8000"
+
+  # Optional: public HTTPS access without opening ports.
+  # Start with:  docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:2026.11.2
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - app

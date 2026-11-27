@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Administration') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Administration') }}</h1>
+<div class="grid2">
+<section class="card">
+  <h2>{{ _('Notifications') }}</h2>
+  <p>{{ _('Email') }}: {% if email_on %}<span class="status s-approved">{{ _('configured') }}</span>{% else %}<span class="status s-cancelled">{{ _('not configured') }}</span>{% endif %}</p>
+  <p>WhatsApp: {% if whatsapp_on %}<span class="status s-approved">{{ _('configured') }}</span>{% else %}<span class="status s-cancelled">{{ _('not configured') }}</span>{% endif %}</p>
+  <p class="muted">{{ _('Settings are in the .env file on the server (see README).') }}</p>
+  <form method="post" action="{{ url_for('admin.test_notification') }}">{{ m.csrf() }}<button>{{ _('Send me a test notification') }}</button></form>
+</section>
+<section class="card">
+  <h2>{{ _('System') }}</h2>
+  <dl class="props">
+    <dt>{{ _('Version') }}</dt><dd>{{ version }}</dd>
+    <dt>{{ _('Database size') }}</dt><dd>{{ (db_size / 1024 / 1024)|round(2) }} MB</dd>
+    <dt>{{ _('Audit log entries') }}</dt><dd>{{ audit_count }}</dd>
+  </dl>
+</section>
+</div>
+<section class="card">
+  <h2>{{ _('Backups') }}</h2>
+  <p class="muted">{{ _('Automatic backup every day after {h}:00 into {dir}. The newest {k} are kept.', h=backup_hour, dir=backup_dir, k=backup_keep) }}</p>
+  <form method="post" action="{{ url_for('admin.backup_now') }}">{{ m.csrf() }}<button class="primary">{{ _('Create backup now') }}</button></form>
+  {% if backups %}
+  <div class="tablewrap"><table>
+    <thead><tr><th>{{ _('File') }}</th><th>{{ _('Time') }}</th><th>{{ _('Size') }}</th></tr></thead>
+    <tbody>{% for b in backups %}<tr><td><a href="{{ url_for('admin.backup_download', name=b.name) }}">{{ b.name }}</a></td><td>{{ b.mtime.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ (b.size / 1024 / 1024)|round(2) }} MB</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">{{ _('No backups yet.') }}</p>{% endif %}
+</section>
+<section class="card">
+  <h2>{{ _('Event types') }}</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>{{ _('Slovak name') }}</th><th>{{ _('English name') }}</th><th>{{ _('Color') }}</th><th>{{ _('Active') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for t in types %}
+    {% set fid = 'et' ~ t.id %}
+    <tr>
+      <td><input form="{{ fid }}" name="name_sk" value="{{ t.name_sk }}" required></td>
+      <td><input form="{{ fid }}" name="name_en" value="{{ t.name_en }}" required></td>
+      <td><input form="{{ fid }}" type="color" name="color" value="{{ t.color }}"></td>
+      <td><input form="{{ fid }}" type="checkbox" name="active" value="1" {{ 'checked' if t.active }}></td>
+      <td><form id="{{ fid }}" method="post" action="{{ url_for('admin.event_type_save') }}">{{ m.csrf() }}<input type="hidden" name="id" value="{{ t.id }}"><button>{{ _('Save') }}</button></form></td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td><input form="etnew" name="name_sk" placeholder="{{ _('New type') }} (SK)" required></td>
+      <td><input form="etnew" name="name_en" placeholder="{{ _('New type') }} (EN)" required></td>
+      <td><input form="etnew" type="color" name="color" value="#6b7280"></td><td></td>
+      <td><form id="etnew" method="post" action="{{ url_for('admin.event_type_save') }}">{{ m.csrf() }}<button>+ {{ _('Add') }}</button></form></td>
+    </tr>
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

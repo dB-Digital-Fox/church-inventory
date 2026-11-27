@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ event.title }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ event.title }} {% if event.archived %}<span class="status s-cancelled">{{ _('archived') }}</span>{% endif %}</h1>
+  <div class="actions">
+    {% if can_edit %}<a class="button" href="{{ url_for('events.edit', event_id=event.id) }}">{{ _('Edit') }}</a>{% endif %}
+    {% if can('reservation.create') and not event.archived %}<a class="button" href="{{ url_for('reservations.new', event_id=event.id) }}">{{ _('Reserve item for this event') }}</a>{% endif %}
+  </div>
+</div>
+<section class="card">
+  <dl class="props">
+    <dt>{{ _('Type') }}</dt><dd>{{ m.type_badge(event) }}</dd>
+    <dt>{{ _('Date') }}</dt><dd>{{ event.event_date|local }}{% if event.start_time %}, {{ event.start_time }}{% if event.end_time %}–{{ event.end_time }}{% endif %}{% endif %}</dd>
+    <dt>{{ _('Location') }}</dt><dd>{{ event.location or '—' }}</dd>
+    <dt>{{ _('Who took part / did it') }}</dt><dd>
+      {% for p in people %}<a href="{{ url_for('users.detail', user_id=p.id) }}">{{ p.full_name }}</a>{{ ', ' if not loop.last }}{% endfor %}
+      {% if event.other_participants %}{% if people %}, {% endif %}{{ event.other_participants }}{% endif %}
+      {% if not people and not event.other_participants %}—{% endif %}
+    </dd>
+    <dt>{{ _('Logged by') }}</dt><dd>{{ event.creator_name or '—' }}</dd>
+  </dl>
+  {% if event.description %}<div class="writeup">{{ event.description }}</div>{% endif %}
+  {{ m.meta(event) }}
+</section>
+<section class="card">
+  <h2>{{ _('Photos') }}</h2>
+  {{ m.photo_grid(photos, can_edit) }}
+  {% if not photos %}<p class="muted">{{ _('No photos yet.') }}</p>{% endif %}
+  {% if can_edit %}
+  <form method="post" action="{{ url_for('events.add_photos', event_id=event.id) }}" enctype="multipart/form-data" class="inlineform">
+    {{ m.csrf() }}<input type="file" name="photos" accept="image/*" multiple required><button>{{ _('Upload') }}</button>
+  </form>
+  {% endif %}
+</section>
+{% if reservations %}
+<section class="card">
+  <h2>{{ _('Items reserved for this event') }}</h2>
+  {{ m.reservation_table(reservations) }}
+</section>
+{% endif %}
+<section class="card">
+  {{ m.history_list(history) }}
+  {% if can('event.edit_any') %}
+  <form method="post" action="{{ url_for('events.archive', event_id=event.id) }}" class="inlineform" data-confirm="{{ _('Are you sure?') }}">
+    {{ m.csrf() }}
+    {% if event.archived %}<button>{{ _('Restore event') }}</button>
+    {% else %}<input name="reason" placeholder="{{ _('Reason') }}"><button class="danger">{{ _('Archive event') }}</button>{% endif %}
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

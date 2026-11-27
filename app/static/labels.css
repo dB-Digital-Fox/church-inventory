@@ -1,0 +1,12 @@
+body { font-family: system-ui, sans-serif; margin: 0; }
+.bar { display: flex; gap: 1rem; align-items: center; padding: .75rem 1rem; background: #f3f4f6; flex-wrap: wrap; }
+.bar form { display: flex; gap: .5rem; align-items: center; }
+.bar input[type=number] { width: 4rem; }
+.sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; padding: 8mm; }
+.label { display: flex; gap: 3mm; align-items: center; border: 1px dashed #9ca3af; padding: 3mm; break-inside: avoid; font-size: 10pt; }
+.label img { width: 28mm; height: 28mm; }
+@media print {
+  .noprint { display: none; }
+  @page { size: A4; margin: 6mm; }
+  .sheet { padding: 0; }
+}
