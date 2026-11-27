@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('First setup') }}{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>{{ _('First setup') }}</h1>
+  <p>{{ _('Create the first administrator account. You can add other people afterwards.') }}</p>
+  <form method="post">
+    {{ m.csrf() }}
+    <label>{{ _('Full name') }} *<input name="full_name" required value="{{ request.form.full_name }}"></label>
+    <label>{{ _('Username') }} *<input name="username" required autocomplete="username" value="{{ request.form.username }}"></label>
+    <label>{{ _('Email') }}<input name="email" type="email" value="{{ request.form.email }}"></label>
+    <label>{{ _('Language') }}<select name="language">{% for code, name in LANGUAGES.items() %}<option value="{{ code }}" {{ 'selected' if code == lang }}>{{ name }}</option>{% endfor %}</select></label>
+    <label>{{ _('Password') }} *<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
+    <label>{{ _('Repeat password') }} *<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
+    <button class="primary">{{ _('Create administrator') }}</button>
+  </form>
+</div>
+{% endblock %}

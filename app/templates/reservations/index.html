@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Reservations') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Reservations') }}</h1>
+  <div class="actions">{% if can('reservation.create') %}<a class="button primary" href="{{ url_for('reservations.new') }}">+ {{ _('Reserve item') }}</a>{% endif %}</div>
+</div>
+<form class="filters" method="get">
+  <select name="status">
+    <option value="active" {{ 'selected' if status == 'active' }}>{{ _('Active') }}</option>
+    <option value="all" {{ 'selected' if status == 'all' }}>{{ _('All') }}</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ _(s) }}</option>{% endfor %}
+  </select>
+  <select name="item"><option value="">{{ _('All items') }}</option>{% for i in items %}<option value="{{ i.id }}" {{ 'selected' if item_id == i.id }}>{{ i.name }}</option>{% endfor %}</select>
+  <select name="user"><option value="">{{ _('Everyone') }}</option>{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if user_id == u.id }}>{{ u.full_name }}</option>{% endfor %}</select>
+  <button>{{ _('Filter') }}</button>
+</form>
+{% set clashes = rows|selectattr('clash')|list %}
+{% if clashes %}<div class="flash error">⚠ {{ _('{n} reservations clash with other bookings (more pieces booked at the same time than exist).', n=clashes|length) }}</div>{% endif %}
+{{ m.reservation_table(rows) }}
+{% endblock %}

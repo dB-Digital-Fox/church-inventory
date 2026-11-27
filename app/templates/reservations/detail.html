@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Reservation') }} #{{ r.id }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Reservation') }} #{{ r.id }}: {{ r.item_name }} ×{{ r.quantity }}</h1>
+  <div class="actions">{% if can_edit %}<a class="button" href="{{ url_for('reservations.edit', rid=r.id) }}">{{ _('Edit') }}</a>{% endif %}</div>
+</div>
+{% if clash.clash %}
+<div class="flash error">⚠ {{ _('Clash: only {a} of {t} pieces are free at that time.', a=clash.available, t=clash.total) }}</div>
+{% endif %}
+<div class="grid2">
+<section class="card">
+  <dl class="props">
+    <dt>{{ _('Status') }}</dt><dd><span class="status s-{{ r.status }}">{{ _(r.status) }}</span>{% if overdue %} <span class="status s-overdue">{{ _('overdue') }}</span>{% endif %}</dd>
+    <dt>{{ _('Item') }}</dt><dd><a href="{{ url_for('items.detail', item_id=r.item_id) }}">{{ r.item_name }}</a> ({{ _('{n} pcs', n=r.item_quantity) }})</dd>
+    <dt>{{ _('Quantity') }}</dt><dd>{{ r.quantity }}</dd>
+    <dt>{{ _('Person') }}</dt><dd><a href="{{ url_for('users.detail', user_id=r.user_id) }}">{{ r.full_name }}</a></dd>
+    <dt>{{ _('From') }}</dt><dd>{{ r.start_at|local }}</dd>
+    <dt>{{ _('To') }}</dt><dd>{{ r.end_at|local }}</dd>
+    {% if r.event_id %}<dt>{{ _('Event') }}</dt><dd><a href="{{ url_for('events.detail', event_id=r.event_id) }}">{{ r.event_title }}</a></dd>{% endif %}
+    {% if r.purpose %}<dt>{{ _('Purpose / note') }}</dt><dd>{{ r.purpose }}</dd>{% endif %}
+    {% if r.decision_note %}<dt>{{ _('Decision note') }}</dt><dd>{{ r.decision_note }}</dd>{% endif %}
+    {% if r.return_condition %}<dt>{{ _('Returned in condition') }}</dt><dd>{{ _(r.return_condition) }}{% if r.return_note %} — {{ r.return_note }}{% endif %}</dd>{% endif %}
+  </dl>
+  {{ m.meta(r) }}
+</section>
+<section class="card">
+  <h2>{{ _('Other bookings at the same time') }}</h2>
+  {% if clash.overlaps %}
+    <p class="muted">{{ _('Booked at peak: {b} of {t} pieces.', b=clash.booked, t=clash.total) }}</p>
+    <ul>{% for o in clash.overlaps %}<li><a href="{{ url_for('reservations.detail', rid=o.id) }}">{{ o.full_name }} · ×{{ o.quantity }} · {{ o.start_at|local }} – {{ o.end_at|local }}</a> · {{ _(o.status) }}</li>{% endfor %}</ul>
+  {% else %}<p class="muted">{{ _('None.') }}</p>{% endif %}
+</section>
+</div>
+
+<section class="card actionsbox">
+  {% set manage = can('reservation.manage') %}
+  {% if manage and r.status == 'pending' %}
+  <form method="post" action="{{ url_for('reservations.change_status', rid=r.id) }}" class="inlineform">
+    {{ m.csrf() }}<input name="note" placeholder="{{ _('Note (optional)') }}">
+    <button name="action" value="approve" class="primary">✓ {{ _('Approve') }}</button>
+    <button name="action" value="reject" class="danger">✕ {{ _('Reject') }}</button>
+  </form>
+  {% endif %}
+  {% if manage and r.status in ('approved', 'pending') %}
+  <form method="post" action="{{ url_for('reservations.change_status', rid=r.id) }}" class="inlineform">
+    {{ m.csrf() }}<button name="action" value="checkout">📤 {{ _('Hand out (check out)') }}</button>
+  </form>
+  {% endif %}
+  {% if manage and r.status == 'checked_out' %}
+  <form method="post" action="{{ url_for('reservations.change_status', rid=r.id) }}" class="inlineform">
+    {{ m.csrf() }}
+    <label>{{ _('Condition on return') }} <select name="condition">{% for c in conditions %}<option value="{{ c }}">{{ _(c) }}</option>{% endfor %}</select></label>
+    <input name="note" placeholder="{{ _('Note (optional)') }}">
+    <label class="check"><input type="checkbox" name="update_item_condition" value="1" checked> {{ _('Update item condition') }}</label>
+    <button name="action" value="return" class="primary">📥 {{ _('Mark returned') }}</button>
+  </form>
+  {% endif %}
+  {% if r.status in ('pending', 'approved') and (manage or r.user_id == g.user.id) %}
+  <form method="post" action="{{ url_for('reservations.change_status', rid=r.id) }}" class="inlineform" data-confirm="{{ _('Are you sure?') }}">
+    {{ m.csrf() }}<button name="action" value="cancel" class="linkbutton danger">{{ _('Cancel reservation') }}</button>
+  </form>
+  {% endif %}
+</section>
+<section class="card">{{ m.history_list(history) }}</section>
+{% endblock %}

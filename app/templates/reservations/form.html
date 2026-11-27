@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Edit reservation') if existing else _('Reserve item') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Edit reservation') if existing else _('Reserve item') }}</h1>
+<form method="post" class="card" id="resform" data-availability="{{ url_for('reservations.availability') }}" data-exclude="{{ existing.id if existing else '' }}">
+  {{ m.csrf() }}
+  <div class="grid2">
+    <label>{{ _('Item') }} *<select name="item_id" required>
+      <option value="">—</option>
+      {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if (form.item_id|string) == (i.id|string) }}>{{ i.name }} ({{ _('{n} pcs', n=i.quantity) }}{% if i.location %}, {{ i.location }}{% endif %})</option>{% endfor %}
+    </select></label>
+    <label>{{ _('Quantity') }} *<input type="number" name="quantity" min="1" required value="{{ form.quantity or 1 }}"></label>
+    <label>{{ _('From') }} *<input type="datetime-local" name="start_at" required value="{{ form.start_at or '' }}"></label>
+    <label>{{ _('To') }} *<input type="datetime-local" name="end_at" required value="{{ form.end_at or '' }}"></label>
+    {% if can('reservation.manage') %}
+    <label>{{ _('For whom') }}<select name="user_id">
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if (form.user_id|string) == (u.id|string) or (not form.user_id and u.id == g.user.id) }}>{{ u.full_name }}</option>{% endfor %}
+    </select></label>
+    {% endif %}
+    <label>{{ _('For event (optional)') }}<select name="event_id">
+      <option value="">—</option>
+      {% for e in events %}<option value="{{ e.id }}" {{ 'selected' if (form.event_id|string) == (e.id|string) }}>{{ e.event_date|local }} · {{ e.title }}</option>{% endfor %}
+    </select></label>
+  </div>
+  <label>{{ _('Purpose / note') }}<textarea name="purpose" rows="3">{{ form.purpose or '' }}</textarea></label>
+
+  {% if not clash %}
+  <div id="availability" class="availability" aria-live="polite"
+       data-t-free="{{ _('Available: {a} of {t} pieces free at that time.') }}"
+       data-t-clash="{{ _('Clash: only {a} of {t} pieces are free at that time.') }}"
+       data-t-overlap="{{ _('Other bookings at the same time:') }}"></div>
+  {% endif %}
+
+  {% if clash %}
+  <div class="flash {{ 'error' if clash.clash else 'info' }}">
+    {% if clash.clash %}⚠ {{ _('Clash: only {a} of {t} pieces are free at that time.', a=clash.available, t=clash.total) }}{% endif %}
+    {% if clash.overlaps %}
+    <p>{{ _('Other bookings at the same time:') }}</p>
+    <ul>{% for o in clash.overlaps %}<li><a href="{{ url_for('reservations.detail', rid=o.id) }}" target="_blank">{{ o.full_name }} · ×{{ o.quantity }} · {{ o.start_at|local }} – {{ o.end_at|local }} · {{ _(o.status) }}</a></li>{% endfor %}</ul>
+    {% endif %}
+    {% if clash.clash %}<label class="check"><input type="checkbox" name="confirm_clash" value="1"> {{ _('I know about the clash and want to save anyway') }}</label>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="actions">
+    <button class="primary">{{ _('Save') if existing else (_('Reserve') if can('reservation.manage') else _('Send request')) }}</button>
+    <a class="button" href="{{ url_for('reservations.detail', rid=existing.id) if existing else url_for('reservations.index') }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

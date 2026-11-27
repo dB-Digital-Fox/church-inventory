@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Edit person') if editing else _('Add person') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Edit person') if editing else _('Add person') }}</h1>
+<form method="post" class="card">
+  {{ m.csrf() }}
+  <div class="grid2">
+    <label>{{ _('Full name') }} *<input name="full_name" required value="{{ person.full_name or '' }}"></label>
+    {% if editing %}
+      <label>{{ _('Username') }}<input value="{{ person.username }}" disabled></label>
+    {% else %}
+      <label>{{ _('Username') }} *<input name="username" required value="{{ person.username or '' }}" autocomplete="off"></label>
+    {% endif %}
+    <label>{{ _('Email') }}<input name="email" type="email" value="{{ person.email or '' }}"></label>
+    <label>{{ _('WhatsApp number') }}<input name="phone" value="{{ person.phone or '' }}" placeholder="+421 900 123 456"></label>
+    <label>{{ _('Role') }}<select name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if person.role == r }}>{{ _(r) }}</option>{% endfor %}</select></label>
+    <label>{{ _('Language') }}<select name="language"><option value="">{{ _('Default') }}</option>{% for code, name in LANGUAGES.items() %}<option value="{{ code }}" {{ 'selected' if person.language == code }}>{{ name }}</option>{% endfor %}</select></label>
+  </div>
+  {% if editing %}<label class="check"><input type="checkbox" name="active" value="1" {{ 'checked' if person.active and person.active != '0' }}> {{ _('Active (can log in)') }}</label>{% endif %}
+  {% if not editing %}<p class="muted">{{ _('A temporary password is shown after saving. The person must change it at first login.') }}</p>{% endif %}
+  <div class="actions">
+    <button class="primary">{{ _('Save') }}</button>
+    <a class="button" href="{{ url_for('users.detail', user_id=person.id) if editing else url_for('users.index') }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+{% if editing %}
+<form method="post" action="{{ url_for('users.reset_password', user_id=person.id) }}" class="card" data-confirm="{{ _('Are you sure?') }}">
+  {{ m.csrf() }}
+  <p>{{ _('Forgot password? Create a temporary one and give it to the person.') }}</p>
+  <button>{{ _('Reset password') }}</button>
+</form>
+{% endif %}
+{% endblock %}

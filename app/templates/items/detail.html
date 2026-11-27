@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ item.name }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ item.name }} {% if item.archived %}<span class="status s-cancelled">{{ _('archived') }}</span>{% endif %}</h1>
+  <div class="actions">
+    {% if can('reservation.create') and item.reservable and not item.archived %}<a class="button primary" href="{{ url_for('reservations.new', item_id=item.id) }}">{{ _('Reserve') }}</a>{% endif %}
+    {% if can('item.edit') %}<a class="button" href="{{ url_for('items.edit', item_id=item.id) }}">{{ _('Edit') }}</a>{% endif %}
+    <a class="button" href="{{ url_for('items.labels', id=item.id) }}">🏷 {{ _('QR label') }}</a>
+  </div>
+</div>
+<div class="grid2">
+  <section class="card">
+    <dl class="props">
+      <dt>{{ _('Inventory number') }}</dt><dd>#{{ item.id }}</dd>
+      <dt>{{ _('Category') }}</dt><dd>{{ item.category or '—' }}</dd>
+      <dt>{{ _('Location') }}</dt><dd>{{ item.location or '—' }}</dd>
+      <dt>{{ _('Quantity') }}</dt><dd>{{ item.quantity }}</dd>
+      <dt>{{ _('Condition') }}</dt><dd><span class="cond c-{{ item.condition }}">{{ _(item.condition) }}</span></dd>
+      <dt>{{ _('Serial number') }}</dt><dd>{{ item.serial_number or '—' }}</dd>
+      <dt>{{ _('Purchase date') }}</dt><dd>{{ item.purchase_date|local or '—' }}</dd>
+      <dt>{{ _('Purchase value') }}</dt><dd>{{ item.purchase_value or '—' }}</dd>
+      <dt>{{ _('Can be reserved / borrowed') }}</dt><dd>{{ _('yes') if item.reservable else _('no') }}</dd>
+    </dl>
+    {% if item.description %}<div class="writeup">{{ item.description }}</div>{% endif %}
+    {{ m.meta(item) }}
+  </section>
+  <section class="card center">
+    <img class="qr" src="{{ url_for('items.qr', item_id=item.id) }}" alt="QR">
+    <p class="muted">{{ _('Scan to open this item.') }}</p>
+  </section>
+</div>
+<section class="card">
+  <h2>{{ _('Photos') }}</h2>
+  {{ m.photo_grid(photos, can('item.edit')) }}
+  {% if can('item.edit') %}
+  <form method="post" action="{{ url_for('items.add_photos', item_id=item.id) }}" enctype="multipart/form-data" class="inlineform">
+    {{ m.csrf() }}<input type="file" name="photos" accept="image/*" multiple required><button>{{ _('Upload') }}</button>
+  </form>
+  {% endif %}
+</section>
+<section class="card">
+  <h2>{{ _('Current and upcoming reservations') }}</h2>
+  {{ m.reservation_table(reservations, show_item=False) }}
+  {% if past %}
+  <details><summary>{{ _('Past loans') }} ({{ past|length }})</summary>{{ m.reservation_table(past, show_item=False) }}</details>
+  {% endif %}
+</section>
+<section class="card">
+  {{ m.history_list(history) }}
+  {% if can('item.edit') %}
+  <form method="post" action="{{ url_for('items.archive', item_id=item.id) }}" class="inlineform" data-confirm="{{ _('Are you sure?') }}">
+    {{ m.csrf() }}
+    {% if item.archived %}
+      <button>{{ _('Restore item') }}</button>
+    {% else %}
+      <input name="reason" placeholder="{{ _('Reason (e.g. sold, broken, lost)') }}">
+      <button class="danger">{{ _('Archive item') }}</button>
+    {% endif %}
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

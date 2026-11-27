@@ -1,0 +1,82 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro type_badge(row) %}<span class="badge" style="--c: {{ row.color }}">{{ type_name(row) }}</span>{% endmacro %}
+
+{% macro status_badge(r) -%}
+  <span class="status s-{{ r.status }}">{{ _(r.status) }}</span>
+  {%- if r.clash %} <span class="status s-clash" title="{{ _('This booking clashes with other reservations.') }}">⚠ {{ _('clash') }}</span>{% endif %}
+  {%- if r.overdue %} <span class="status s-overdue">{{ _('overdue') }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro reservation_table(rows, show_item=True, show_person=True) %}
+{% if rows %}
+<div class="tablewrap"><table>
+  <thead><tr>
+    {% if show_item %}<th>{{ _('Item') }}</th>{% endif %}
+    <th>{{ _('Qty') }}</th>
+    {% if show_person %}<th>{{ _('Person') }}</th>{% endif %}
+    <th>{{ _('From') }}</th><th>{{ _('To') }}</th><th>{{ _('Status') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{{ 'row-clash' if r.clash }}">
+      {% if show_item %}<td><a href="{{ url_for('reservations.detail', rid=r.id) }}">{{ r.item_name }}</a></td>{% endif %}
+      <td>{{ r.quantity }}</td>
+      {% if show_person %}<td>{{ r.full_name }}</td>{% endif %}
+      <td><a href="{{ url_for('reservations.detail', rid=r.id) }}">{{ r.start_at|local }}</a></td>
+      <td>{{ r.end_at|local }}</td>
+      <td>{{ status_badge(r) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="muted">{{ _('No reservations.') }}</p>
+{% endif %}
+{% endmacro %}
+
+{% macro history_list(history) %}
+<details class="history">
+  <summary>{{ _('Change history') }} ({{ history|length }})</summary>
+  {% if history %}
+  <ul class="timeline">
+  {% for h in history %}
+    <li>
+      <span class="ts">{{ h.ts|dt }}</span> · <strong>{{ h.username }}</strong> · {{ _(h.action) }}
+      {% if h.summary %}<span class="muted">— {{ h.summary }}</span>{% endif %}
+      {% if h.changes_dict %}
+      <table class="diff">
+        {% for field, pair in h.changes_dict.items() %}
+        <tr><th>{{ _(field) }}</th><td class="old">{{ pair[0] if pair[0] is not none else '—' }}</td><td>→</td><td class="new">{{ pair[1] if pair[1] is not none else '—' }}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+  {% else %}<p class="muted">{{ _('No changes recorded.') }}</p>{% endif %}
+</details>
+{% endmacro %}
+
+{% macro meta(row) %}
+<p class="meta">{{ _('Created') }} {{ row.created_at|dt }}{% if row.updated_at and row.updated_at != row.created_at %} · {{ _('Last edited') }} {{ row.updated_at|dt }}{% endif %}</p>
+{% endmacro %}
+
+{% macro photo_grid(photos, can_hide) %}
+{% if photos %}
+<div class="photos">
+  {% for p in photos %}
+  <figure>
+    <a href="{{ url_for('main.upload', name=p.filename) }}" target="_blank"><img src="{{ url_for('main.upload', name='thumbs/' ~ p.filename) }}" alt="{{ p.original_name }}" loading="lazy"></a>
+    <figcaption>{{ p.uploaded_at|dt }}
+      {% if can_hide %}
+      <form method="post" action="{{ url_for('items.hide_photo', photo_id=p.id) }}" class="inline" data-confirm="{{ _('Remove this photo from view? It stays in the audit trail.') }}">
+        {{ csrf() }}<button class="linkbutton danger">✕</button>
+      </form>
+      {% endif %}
+    </figcaption>
+  </figure>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}

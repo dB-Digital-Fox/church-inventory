@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ person.full_name }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ person.full_name }} {% if not person.active %}<span class="status s-cancelled">{{ _('inactive') }}</span>{% endif %}</h1>
+  <div class="actions">
+    {% if can('admin') %}
+      <a class="button" href="{{ url_for('users.edit', user_id=person.id) }}">{{ _('Edit') }}</a>
+    {% endif %}
+    <a class="button" href="{{ url_for('events.index', user=person.id) }}">{{ _('Filter events') }}</a>
+  </div>
+</div>
+<p class="muted">{{ _(person.role) }}</p>
+<section class="card">
+  <h2>{{ _('Events') }} ({{ events|length }})</h2>
+  {% if by_type %}<p>{% for key, n in by_type.items() %}<span class="badge" style="--c: {{ key[2] }}">{{ key[0] if lang == 'sk' else key[1] }}: {{ n }}</span> {% endfor %}</p>{% endif %}
+  {% for e in events %}
+    <div class="listrow"><span class="date">{{ e.event_date|local }}</span> {{ m.type_badge(e) }} <a href="{{ url_for('events.detail', event_id=e.id) }}">{{ e.title }}</a></div>
+  {% else %}<p class="muted">{{ _('No events yet.') }}</p>{% endfor %}
+</section>
+<section class="card">
+  <h2>{{ _('Reservations') }}</h2>
+  {{ m.reservation_table(reservations, show_person=False) }}
+</section>
+{% if history %}<section class="card">{{ m.history_list(history) }}</section>{% endif %}
+{% endblock %}

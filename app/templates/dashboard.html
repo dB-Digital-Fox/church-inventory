@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Overview') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Overview') }}</h1>
+  <div class="actions">
+    {% if can('event.create') %}<a class="button primary" href="{{ url_for('events.new') }}">+ {{ _('Log event') }}</a>{% endif %}
+    {% if can('reservation.create') %}<a class="button" href="{{ url_for('reservations.new') }}">+ {{ _('Reserve item') }}</a>{% endif %}
+    {% if can('item.edit') %}<a class="button" href="{{ url_for('items.new') }}">+ {{ _('Add item') }}</a>{% endif %}
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat" href="{{ url_for('items.index') }}"><b>{{ counts.item_count }}</b><span>{{ _('Items') }}</span></a>
+  <a class="stat" href="{{ url_for('events.index') }}"><b>{{ counts.event_count }}</b><span>{{ _('Events') }}</span></a>
+  <a class="stat" href="{{ url_for('reservations.index') }}"><b>{{ counts.active_res }}</b><span>{{ _('Active reservations') }}</span></a>
+</div>
+
+{% if pending %}
+<section class="card attention">
+  <h2>{{ _('Waiting for approval') }} ({{ pending|length }})</h2>
+  {{ m.reservation_table(pending) }}
+</section>
+{% endif %}
+{% if overdue %}
+<section class="card attention">
+  <h2>{{ _('Overdue returns') }}</h2>
+  {{ m.reservation_table(overdue) }}
+</section>
+{% endif %}
+
+<div class="grid2">
+  <section class="card">
+    <h2>{{ _('Upcoming events') }}</h2>
+    {% for e in upcoming %}
+      <div class="listrow"><span class="date">{{ e.event_date|local }} {{ e.start_time }}</span> {{ m.type_badge(e) }} <a href="{{ url_for('events.detail', event_id=e.id) }}">{{ e.title }}</a></div>
+    {% else %}<p class="muted">{{ _('Nothing planned.') }}</p>{% endfor %}
+  </section>
+  <section class="card">
+    <h2>{{ _('Recent events') }}</h2>
+    {% for e in recent %}
+      <div class="listrow"><span class="date">{{ e.event_date|local }}</span> {{ m.type_badge(e) }} <a href="{{ url_for('events.detail', event_id=e.id) }}">{{ e.title }}</a></div>
+    {% else %}<p class="muted">{{ _('No events yet.') }}</p>{% endfor %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>{{ _('My reservations') }}</h2>
+  {{ m.reservation_table(mine, show_person=False) }}
+</section>
+
+{% if activity %}
+<section class="card">
+  <h2>{{ _('Recent activity') }}</h2>
+  {% for a in activity %}
+    <div class="listrow"><span class="date">{{ a.ts|dt }}</span> <strong>{{ a.username }}</strong> · {{ _(a.action) }} · {{ _(a.entity) }} {% if a.summary %}<span class="muted">— {{ a.summary }}</span>{% endif %}</div>
+  {% endfor %}
+  <p><a href="{{ url_for('audit.index') }}">{{ _('Full audit log') }} →</a></p>
+</section>
+{% endif %}
+{% endblock %}

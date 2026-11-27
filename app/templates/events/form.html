@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Edit event') if editing else _('Log event') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Edit event') if editing else _('Log event') }}</h1>
+<form method="post" enctype="multipart/form-data" class="card">
+  {{ m.csrf() }}
+  <div class="grid2">
+    <label>{{ _('Title') }} *<input name="title" required value="{{ event.title or '' }}" placeholder="{{ _('e.g. Sunday Mass, Youth meeting') }}"></label>
+    <label>{{ _('Type') }} *<select name="type_id" required>
+      <option value="">—</option>
+      {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if (event.type_id|string) == (t.id|string) }}>{{ type_name(t) }}</option>{% endfor %}
+    </select></label>
+    <label>{{ _('Date') }} *<input type="date" name="event_date" required value="{{ event.event_date or '' }}"></label>
+    <div class="grid2 tight">
+      <label>{{ _('Start') }}<input type="time" name="start_time" value="{{ event.start_time or '' }}"></label>
+      <label>{{ _('End') }}<input type="time" name="end_time" value="{{ event.end_time or '' }}"></label>
+    </div>
+    <label>{{ _('Location') }}<input name="location" value="{{ event.location or '' }}"></label>
+    <label>{{ _('Other participants (not in the system)') }}<input name="other_participants" value="{{ event.other_participants or '' }}" placeholder="{{ _('e.g. guest choir, external technician') }}"></label>
+  </div>
+  <fieldset>
+    <legend>{{ _('Who took part / did it') }}</legend>
+    <div class="checks">
+    {% for u in users %}<label class="check"><input type="checkbox" name="participants" value="{{ u.id }}" {{ 'checked' if u.id in selected }}> {{ u.full_name }}</label>{% endfor %}
+    </div>
+  </fieldset>
+  <label>{{ _('Short write-up') }}<textarea name="description" rows="6" placeholder="{{ _('What happened, what was used, anything worth remembering…') }}">{{ event.description or '' }}</textarea></label>
+  <label>{{ _('Photos') }}<input type="file" name="photos" accept="image/*" multiple></label>
+  <div class="actions">
+    <button class="primary">{{ _('Save') }}</button>
+    <a class="button" href="{{ url_for('events.detail', event_id=event_id) if editing else url_for('events.index') }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

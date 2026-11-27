@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('My profile') }}{% endblock %}
+{% block content %}
+<h1>{{ _('My profile') }}</h1>
+<div class="grid2">
+<section class="card">
+  <h2>{{ _('Details and notifications') }}</h2>
+  <form method="post">
+    {{ m.csrf() }}<input type="hidden" name="action" value="details">
+    <p class="muted">{{ _('Username') }}: <strong>{{ g.user.username }}</strong> · {{ _('Role') }}: <strong>{{ _(g.user.role) }}</strong></p>
+    <label>{{ _('Full name') }}<input name="full_name" value="{{ g.user.full_name }}" required></label>
+    <label>{{ _('Email') }}<input name="email" type="email" value="{{ g.user.email }}"></label>
+    <label>{{ _('WhatsApp number') }}<input name="phone" value="{{ g.user.phone }}" placeholder="+421 900 123 456"></label>
+    <label>{{ _('Language') }}<select name="language">
+      <option value="">{{ _('Default') }}</option>
+      {% for code, name in LANGUAGES.items() %}<option value="{{ code }}" {{ 'selected' if g.user.language == code }}>{{ name }}</option>{% endfor %}
+    </select></label>
+    <label class="check"><input type="checkbox" name="notify_email" {{ 'checked' if g.user.notify_email }}> {{ _('Send me notifications by email') }}</label>
+    <label class="check"><input type="checkbox" name="notify_whatsapp" {{ 'checked' if g.user.notify_whatsapp }}> {{ _('Send me notifications on WhatsApp') }}</label>
+    <button class="primary">{{ _('Save') }}</button>
+  </form>
+</section>
+<section class="card">
+  <h2>{{ _('Change password') }}</h2>
+  {% if g.user.must_change_password %}<div class="flash warning">{{ _('You are using a temporary password. Please choose your own.') }}</div>{% endif %}
+  <form method="post">
+    {{ m.csrf() }}<input type="hidden" name="action" value="password">
+    <label>{{ _('Current password') }}<input name="current" type="password" required autocomplete="current-password"></label>
+    <label>{{ _('New password') }} ({{ _('at least {n} characters', n=min_password) }})<input name="password" type="password" required minlength="{{ min_password }}" autocomplete="new-password"></label>
+    <label>{{ _('Repeat password') }}<input name="password2" type="password" required minlength="{{ min_password }}" autocomplete="new-password"></label>
+    <button class="primary">{{ _('Change password') }}</button>
+  </form>
+</section>
+</div>
+<section class="card">
+  <h2>📅 {{ _('Calendar') }}</h2>
+  <p>{{ _('Subscribe to this private link in Google Calendar, Outlook or your phone. It shows events and item reservations, and updates automatically.') }}</p>
+  <label>{{ _('Everything') }}<input class="copy" readonly value="{{ feed }}"></label>
+  <label>{{ _('Only my events and reservations') }}<input class="copy" readonly value="{{ feed }}?scope=mine"></label>
+  <p><a class="button" href="{{ feed|replace('https://', 'webcal://')|replace('http://', 'webcal://') }}">{{ _('Open in calendar app') }}</a></p>
+  <details>
+    <summary>{{ _('How to add it') }}</summary>
+    <ul>
+      <li><strong>Google Calendar</strong>: {{ _('on a computer open calendar.google.com → Other calendars → + → From URL → paste the link.') }}</li>
+      <li><strong>Outlook</strong>: {{ _('Add calendar → Subscribe from web → paste the link.') }}</li>
+      <li><strong>iPhone</strong>: {{ _('Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste the link.') }}</li>
+    </ul>
+    <p class="muted">{{ _('Calendar apps refresh subscribed calendars on their own schedule (Google can take several hours).') }}</p>
+  </details>
+  <form method="post" data-confirm="{{ _('Create a new link? The old link will stop working.') }}">
+    {{ m.csrf() }}<input type="hidden" name="action" value="calendar_token">
+    <button class="linkbutton danger">{{ _('Create a new link (if the old one was shared by mistake)') }}</button>
+  </form>
+</section>
+{% endblock %}
