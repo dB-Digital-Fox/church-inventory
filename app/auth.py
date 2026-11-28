@@ -22,6 +22,7 @@ PERMISSIONS = {
     "maintenance.manage": {"admin", "manager"},
     "maintenance.log": {"admin", "manager", "member"},
     "reports.view": {"admin", "manager", "auditor"},
+    "roster.manage": {"admin", "manager"},
     "admin": {"admin"},
 }
 

@@ -34,7 +34,7 @@ def type_name(row, lang=None):
     return row["name_sk"] if lang == "sk" else row["name_en"]
 
 
-CODE_FIELDS = {"status", "condition", "return_condition", "role"}
+CODE_FIELDS = {"status", "condition", "return_condition", "role", "gallery"}
 
 
 def fmt_value(field, value):

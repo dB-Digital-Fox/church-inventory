@@ -1,0 +1,6 @@
+{% if not g.user %}
+<header class="publichead">
+  <a class="brand" href="{{ url_for('gallery.index') }}">✝ {{ org_name }}</a>
+  <a href="{{ url_for('main.login', next=request.path) }}">{{ _('Log in') }}</a>
+</header>
+{% endif %}

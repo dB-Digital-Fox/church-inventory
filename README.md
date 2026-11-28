@@ -7,10 +7,12 @@ A small, self-hosted web app for a parish or church community to keep track of:
 - **Rooms and spaces** (parish hall, meeting room, kitchen, the church itself) are booked the same way as items and show up in the same calendar, with the same clash warning.
 - **Maintenance and inspections**: recurring tasks such as fire extinguisher checks, electrical inspections (revízie), organ tuning or boiler service, with due dates, a responsible person or contractor, reminders by email/WhatsApp (14, 7 and 1 day before, then weekly while overdue), and a history of the work done with photos, result and cost.
 - **Donations and asset value**: how each item was acquired (purchase or donation, and from whom), its value, and straight-line depreciation over its useful life. A yearly **assets and donations report** for the diocese or the insurer can be printed, saved as PDF or downloaded as CSV.
+- **Volunteer rosters**: who reads, serves at the altar, sings, ushers, does the sound or cleans at each event. Places can be assigned or left open for people to sign up. Someone who can't come asks for a replacement and stays on until another person takes over. Everyone gets a reminder the day before, and managers hear about gaps two days ahead. Duties appear in each person's calendar.
+- **Photo galleries** for finished events, either for members only or public (no login, for the parish website or Facebook). Public galleries show only the title, date and photos, never the write-up or names.
 - **Reservations and borrowing**: request, approve, hand out and return items, with a **clear warning when bookings clash** (quantity-aware: 10 chairs can be booked by several people as long as no more than 10 are out at once).
 - **Audit trail**: every change is recorded with who, when, and exactly what changed (before → after). The log is **append-only and hash-chained**, so it can serve as evidence. Records are edited with full history and archived instead of deleted. Photos are never deleted, only hidden.
 - **Calendar**: each person gets a private calendar link (iCal) for Google Calendar, Outlook or iPhone that shows events and reservations and updates automatically.
-- **Notifications** by **email** and **WhatsApp**: new reservation requests (with the clash warning), approvals and rejections, a reminder the day before, overdue returns, maintenance due dates, and a daily audit fingerprint for auditors.
+- **Notifications** by **email** and **WhatsApp**: new reservation requests (with the clash warning), approvals and rejections, a reminder the day before, overdue returns, maintenance due dates, roster duties and swaps, and a daily audit fingerprint for auditors.
 - **Slovak and English** interface (Slovak by default; each person can switch).
 - **Nightly backups** of the database and photos.
 
@@ -28,6 +30,8 @@ License: **GNU AGPL-3.0**. You can use, change and share it freely. If you run a
 | **Event** with participants, write-up, photos and items used<br>![Event](docs/screenshots/event.png) | **Events log**, filterable by type, person and date<br>![Events](docs/screenshots/events.png) |
 | **Rooms and spaces**, booked like items<br>![Rooms](docs/screenshots/rooms.png) | **Maintenance and inspections** with due dates and history<br>![Maintenance](docs/screenshots/maintenance.png) |
 | **Assets and donations report** for the diocese or insurance (print, PDF, CSV)<br>![Assets report](docs/screenshots/assets-report.png) | **Overview** for managers: approvals, overdue returns, maintenance due<br>![Overview](docs/screenshots/dashboard.png) |
+| **Volunteer rosters**: my duties, places that need help, sign up or take over<br>![Rosters](docs/screenshots/rosters.png) | **Roster on the event page**, assigned by a manager<br>![Event roster](docs/screenshots/event-roster.png) |
+| **Public photo galleries**, no login needed<br>![Public gallery](docs/screenshots/gallery-public.png) | |
 | **Clash warning** while booking, shown live as you pick the time<br>![Reservation clash](docs/screenshots/reservation-clash.png) | **Reservations** with clashes highlighted<br>![Reservations](docs/screenshots/reservations.png) |
 | **Audit log**: who changed what and when, before → after, with integrity check<br>![Audit log](docs/screenshots/audit-log.png) | **People** and how many events each person did<br>![People](docs/screenshots/people.png) |
 | **Calendar link** for Google, Outlook and iPhone<br>![Calendar](docs/screenshots/calendar.png) | **Printable QR labels**<br>![QR labels](docs/screenshots/qr-labels.png) |
@@ -40,8 +44,8 @@ License: **GNU AGPL-3.0**. You can use, change and share it freely. If you run a
 | Role | Can do |
 |---|---|
 | **Admin** | Everything, including people, event types, backups and settings |
-| **Manager** | Manage inventory and rooms, approve and hand out reservations, edit any event, plan maintenance, see reports and the audit log |
-| **Member** | Log events, edit their own events, request reservations, cancel their own requests, record maintenance work |
+| **Manager** | Manage inventory and rooms, approve and hand out reservations, edit any event and roster, plan maintenance, see reports and the audit log |
+| **Member** | Log events, edit their own events and their rosters, sign up for duties and swap them, request reservations, cancel their own requests, record maintenance work |
 | **Auditor** | Read-only access to everything, including the audit log, the asset report, CSV exports and the printable reports |
 
 ---
@@ -106,6 +110,14 @@ When using HTTPS (both options above), set `SECURE_COOKIES=1` and `BASE_URL=http
 - **WhatsApp**: uses the official WhatsApp Cloud API. See **[docs/whatsapp.md](docs/whatsapp.md)**, which explains the Meta business setup it requires.
 
 People choose in **My profile** whether they want email and/or WhatsApp. Admins can send a test message from **Administration**.
+
+---
+
+## Public galleries and privacy
+
+A gallery is off by default. On the event form choose **Members only** or **Public**. A public gallery is at `https://your-address/gallery/` and works without logging in, so it can be linked from the parish website. Only the title, date, type and photos are shown. Photos are re-encoded without GPS/EXIF data. Publish only photos the people in them agreed to, especially children (GDPR). A photo hidden on the event page disappears from the gallery at once.
+
+If you use Cloudflare Access to protect the whole site, add a bypass rule for `/gallery/*` so visitors can see public galleries (see [docs/cloudflare-tunnel.md](docs/cloudflare-tunnel.md)).
 
 ---
 

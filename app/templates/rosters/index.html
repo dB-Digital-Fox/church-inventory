@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Rosters') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Rosters') }}</h1>
+  <div class="actions">
+    {% if can('event.create') %}<a class="button" href="{{ url_for('events.new') }}">+ {{ _('Plan event') }}</a>{% endif %}
+  </div>
+</div>
+<p class="muted">{{ _('Who reads, serves, sings or cleans at the coming events. Sign up for an open place, or ask for a replacement if you cannot come. Places are added on the event page.') }}</p>
+
+<section class="card">
+  <h2>{{ _('My duties') }}</h2>
+  {% if mine %}{{ m.duty_table(mine, request.path) }}{% else %}<p class="muted">{{ _('You are not on any roster in the coming weeks.') }}</p>{% endif %}
+</section>
+
+{% if needed %}
+<section class="card attention">
+  <h2>{{ _('Help needed') }} ({{ needed|length }})</h2>
+  {{ m.duty_table(needed, request.path) }}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>{{ _('All upcoming rosters') }}</h2>
+  {% for event_id, slots in events.items() %}
+  {% set e = slots[0] %}
+  <div class="roster-event">
+    <h3><a href="{{ url_for('events.detail', event_id=event_id) }}#roster">{{ e.event_title }}</a>
+      <span class="muted">{{ e.event_date|local }}{% if e.start_time %} {{ e.start_time }}{% endif %}{% if e.location %} · {{ e.location }}{% endif %}</span></h3>
+    <ul class="roster">
+      {% for s in slots %}
+      <li><span class="role">{{ role_name(s) }}</span> {{ m.slot_person(s) }} {{ m.slot_actions(s, request.path) }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% else %}
+  <p class="muted">{{ _('No rosters planned yet. Open an upcoming event and add the roles you need.') }}</p>
+  {% endfor %}
+</section>
+{% endblock %}

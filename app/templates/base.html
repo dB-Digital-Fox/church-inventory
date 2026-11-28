@@ -20,7 +20,8 @@
     {% set is_space = request.args.get('kind') == 'space' or (item is defined and item.kind == 'space') %}
     <a href="{{ url_for('items.index') }}" class="{{ 'on' if ep.startswith('items.') and not is_space }}">{{ _('Inventory') }}</a>
     <a href="{{ url_for('items.index', kind='space') }}" class="{{ 'on' if ep.startswith('items.') and is_space }}">{{ _('Rooms') }}</a>
-    <a href="{{ url_for('events.index') }}" class="{{ 'on' if ep.startswith('events.') }}">{{ _('Events') }}</a>
+    <a href="{{ url_for('events.index') }}" class="{{ 'on' if ep.startswith('events.') or ep.startswith('gallery.') }}">{{ _('Events') }}</a>
+    <a href="{{ url_for('rosters.index') }}" class="{{ 'on' if ep.startswith('rosters.') }}">{{ _('Rosters') }}</a>
     <a href="{{ url_for('reservations.index') }}" class="{{ 'on' if ep.startswith('reservations.') }}">{{ _('Reservations') }}</a>
     <a href="{{ url_for('maintenance.index') }}" class="{{ 'on' if ep.startswith('maintenance.') }}">{{ _('Maintenance') }}</a>
     <a href="{{ url_for('users.index') }}" class="{{ 'on' if ep.startswith('users.') }}">{{ _('People') }}</a>

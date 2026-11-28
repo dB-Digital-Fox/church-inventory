@@ -152,6 +152,20 @@ def main():
         event_ids[title] = new_id(author.post("/events/new", data))
     ce = event_ids["Parish hall cleanup"]
     admin.post(f"/events/{ce}/photos", {"photos": (picture((235, 225, 205), (200, 185, 160), "chairs"), "hall.jpg")})
+    # galleries: the cleanup and the recording are shown to everyone, the Mass to members only
+    for title, mode, shots in (("Parish hall cleanup", "public", [((180, 200, 230), (90, 120, 170), "chairs"), ((240, 230, 200), (210, 190, 150), "candles")]),
+                               ("Recording: Advent catechesis", "public", [((40, 40, 60), (10, 10, 20), "mic"), ((60, 40, 70), (20, 10, 30), "screen")]),
+                               ("Sunday Mass – 1st Sunday of Advent", "members", [((110, 30, 50), (60, 10, 25), "cross"), ((60, 40, 70), (20, 10, 30), "candles"), ((120, 30, 50), (40, 10, 20), "choir")])):
+        eid = event_ids[title]
+        for colors in shots:
+            admin.post(f"/events/{eid}/photos", {"photos": (picture(*colors[:2], colors[2]), f"{colors[2]}.jpg")})
+        ev = [e for e in events if e[0] == title][0]
+        name_to_id = {"admin": "1", "maria": "2", "peter": "3", "jana": "4", "tomas": "5"}
+        admin.post(f"/events/{eid}/edit", {"title": title, "type_id": str(ev[1]), "event_date": d(ev[2]),
+                                           "start_time": ev[3], "end_time": ev[4], "location": ev[5],
+                                           "participants": [name_to_id[w] for w in ev[6]],
+                                           "other_participants": ev[7], "description": ev[8],
+                                           "gallery": mode})
 
     mic = item_ids["Wireless microphone Shure"]
     chairs = item_ids["Folding chairs"]
@@ -178,6 +192,24 @@ def main():
     maria.post(f"/reservations/{new_id(r)}/status", {"action": "approve"})
     tomas.post("/reservations/new", {"item_id": hall, "quantity": "1", "start_at": f"{d(30)}T07:00", "end_at": f"{d(30)}T18:00", "event_id": conf})
     maria.post("/reservations/new", {"item_id": room, "quantity": "1", "start_at": f"{d(5)}T19:00", "end_at": f"{d(5)}T21:00", "purpose": "Pastoral council"})
+
+    # volunteer rosters for the coming Sundays
+    ids = {"admin": "1", "maria": "2", "peter": "3", "jana": "4", "tomas": "5"}
+    for offset, title in ((6, "Sunday Mass – 2nd Sunday of Advent"), (13, "Sunday Mass – 3rd Sunday of Advent")):
+        eid = new_id(admin.post("/events/new", {"title": title, "type_id": "1", "event_date": d(offset),
+                                                "start_time": "10:30", "end_time": "11:45", "location": "Church"}))
+        for role, who in ((1, "jana"), (1, "" if offset == 13 else "tomas"), (2, "tomas"), (2, ""), (3, "maria" if offset == 6 else "admin"), (6, "peter")):
+            admin.post(f"/rosters/event/{eid}/add", {"role_id": str(role), "user_id": ids.get(who, "")})
+    from app.db import connect
+    db = connect(app.config["DATABASE"])
+    # Peter is away on the 2nd Sunday and asks for a replacement
+    slot = db.execute("SELECT s.id FROM roster_slots s JOIN events e ON e.id = s.event_id"
+                      " WHERE e.event_date = ? AND s.user_id = 3", (d(6),)).fetchone()[0]
+    peter.post(f"/rosters/{slot}/swap", {"note": "I'm away that weekend"})
+    concert_id = event_ids["Advent concert"]
+    for role, who in ((6, "peter"), (5, "tomas"), (5, "")):
+        admin.post(f"/rosters/event/{concert_id}/add", {"role_id": str(role), "user_id": ids.get(who, "")})
+    db.close()
 
     # maintenance and inspections
     ext = item_ids["Fire extinguisher 6 kg"]

@@ -47,6 +47,10 @@ email. This is a good second layer for an app that holds audit evidence.
 Google/Outlook can't fetch the calendar feeds. Those links are already protected by their own
 secret token.
 
+If you publish public photo galleries, add a **Bypass** for `/gallery/*` too, and for
+`/static/*` so the gallery pages get their styles. Gallery pages show only events
+marked "Public" and nothing else.
+
 ## Without Docker for cloudflared
 
 If you prefer to install `cloudflared` directly on the device, use **Service URL

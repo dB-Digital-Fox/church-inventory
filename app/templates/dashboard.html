@@ -30,6 +30,19 @@
 </section>
 {% endif %}
 
+{% if my_duties %}
+<section class="card">
+  <h2>🙋 {{ _('My duties') }}</h2>
+  {{ m.duty_table(my_duties, request.path) }}
+</section>
+{% endif %}
+{% if roster_needed %}
+<section class="card attention">
+  <h2>🙋 {{ _('Help needed on the roster') }} ({{ roster_needed|length }})</h2>
+  {{ m.duty_table(roster_needed, request.path) }}
+</section>
+{% endif %}
+
 {% if maintenance_due %}
 <section class="card attention">
   <h2>🔧 {{ _('Maintenance due in the next 14 days') }}</h2>

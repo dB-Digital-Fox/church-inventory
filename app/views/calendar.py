@@ -64,8 +64,9 @@ def feed(token):
               " WHERE e.archived = 0 AND e.event_date >= ?")
     params = [since]
     if mine:
-        ev_sql += " AND e.id IN (SELECT event_id FROM event_participants WHERE user_id = ?)"
-        params.append(user["id"])
+        ev_sql += (" AND (e.id IN (SELECT event_id FROM event_participants WHERE user_id = ?)"
+                   " OR e.id IN (SELECT event_id FROM roster_slots WHERE user_id = ?))")
+        params += [user["id"], user["id"]]
     for e in db.execute(ev_sql, params).fetchall():
         people = ", ".join(r[0] for r in db.execute(
             "SELECT u.full_name FROM event_participants p JOIN users u ON u.id = p.user_id"
@@ -84,7 +85,17 @@ def feed(token):
             day = datetime.strptime(e["event_date"], "%Y-%m-%d")
             lines += [f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
                       f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}"]
+        roster = db.execute(
+            "SELECT r.name_sk, r.name_en, u.full_name, s.user_id, s.swap_requested FROM roster_slots s"
+            " JOIN roster_roles r ON r.id = s.role_id LEFT JOIN users u ON u.id = s.user_id"
+            " WHERE s.event_id = ? ORDER BY r.id, s.id", (e["id"],)).fetchall()
+        my_roles = [type_name(r, lang) for r in roster if r["user_id"] == user["id"]]
         desc = [type_name(e, lang)]
+        if my_roles:
+            desc.append(tr("You serve as: {roles}", lang, roles=", ".join(my_roles)))
+        if roster:
+            desc.append(tr("Roster", lang) + ": " + "; ".join(
+                f"{type_name(r, lang)}: {r['full_name'] or tr('open', lang)}" for r in roster))
         if people:
             desc.append(tr("Participants", lang) + ": " + people)
         if e["other_participants"]:
@@ -93,7 +104,10 @@ def feed(token):
             desc.append("")
             desc.append(e["description"])
         desc.append(base + url_for("events.detail", event_id=e["id"]))
-        lines += [f"SUMMARY:{esc(type_name(e, lang) + ': ' + e['title'])}",
+        summary = type_name(e, lang) + ": " + e["title"]
+        if my_roles:
+            summary = f"🙋 {', '.join(my_roles)} — {e['title']}"
+        lines += [f"SUMMARY:{esc(summary)}",
                   f"DESCRIPTION:{esc(chr(10).join(desc))}",
                   f"CATEGORIES:{esc(type_name(e, lang))}",
                   f"URL:{base}{url_for('events.detail', event_id=e['id'])}"]

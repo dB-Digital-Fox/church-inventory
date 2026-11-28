@@ -146,6 +146,9 @@ def dashboard():
                              " ORDER BY r.end_at", (now,)).fetchall()
     from .maintenance import due_tasks
     maintenance_due = due_tasks(db, within_days=14) if can("maintenance.log") else []
+    from .rosters import upcoming_slots
+    my_duties = upcoming_slots(db, days=30, user_id=g.user["id"])
+    roster_needed = [] if g.user["role"] == "auditor" else upcoming_slots(db, days=14, need_only=True)
     activity = []
     if can("audit.view"):
         activity = [audit.with_changes(r) for r in db.execute(
@@ -159,7 +162,8 @@ def dashboard():
     }
     return render_template("dashboard.html", upcoming=upcoming, recent=recent, mine=mine,
                            pending=pending, overdue=overdue, activity=activity, counts=counts,
-                           maintenance_due=maintenance_due,
+                           maintenance_due=maintenance_due, my_duties=my_duties,
+                           roster_needed=roster_needed,
                            now=now)
 
 

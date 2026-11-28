@@ -108,6 +108,8 @@ def create_app(overrides=None):
             "script-src 'self'; frame-ancestors 'none'; form-action 'self'")
         return resp
 
+    from .views.rosters import role_name
+
     @app.context_processor
     def _inject():
         return {
@@ -117,6 +119,7 @@ def create_app(overrides=None):
             "can": auth.can,
             "csrf_token": auth.csrf_token,
             "type_name": i18n.type_name,
+            "role_name": role_name,
             "fmt_value": i18n.fmt_value,
             "org_name": app.config["ORG_NAME"],
             "source_url": app.config["SOURCE_URL"],
@@ -135,10 +138,10 @@ def create_app(overrides=None):
     def _error(err):
         return render_template("error.html", error=err), err.code
 
-    from .views import (admin, audit_views, calendar, events, items, main, maintenance, reports,
-                        reservations, users)
+    from .views import (admin, audit_views, calendar, events, gallery, items, main, maintenance,
+                        reports, reservations, rosters, users)
     for module in (main, items, events, reservations, users, audit_views, calendar, admin,
-                   maintenance, reports):
+                   maintenance, reports, rosters, gallery):
         app.register_blueprint(module.bp)
 
     from . import cli

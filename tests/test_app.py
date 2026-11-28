@@ -501,6 +501,8 @@ def test_old_database_is_migrated(tmp_path):
     conn.execute("INSERT INTO photos (entity, entity_id, filename, sha256, uploaded_at)"
                  " VALUES ('maintenance', 1, 'def.jpg', 'h', ?)", (now,))
     assert conn.execute("SELECT COUNT(*) FROM maintenance_tasks").fetchone()[0] == 0
+    assert "gallery" in {r[1] for r in conn.execute("PRAGMA table_info(events)")}
+    assert conn.execute("SELECT COUNT(*) FROM roster_roles").fetchone()[0] == 7
 
 
 def test_new_pages_render(admin, app):
@@ -515,6 +517,161 @@ def test_new_pages_render(admin, app):
                     f"/maintenance/log/new?task_id={task_id}", "/maintenance/log/1",
                     "/maintenance/log/1/edit", "/reports/", "/reports/assets",
                     f"/items/{item_id}", "/audit/"):
+            r = admin.get(url)
+            assert r.status_code == 200, (lang, url)
+            assert "built-in method" not in r.get_data(as_text=True), (lang, url)
+
+
+# --- volunteer rosters -------------------------------------------------------------------------
+
+def add_event(c, title="Sunday Mass", date="2026-12-06", **extra):
+    data = {"title": title, "type_id": "1", "event_date": date, "start_time": "10:00"}
+    data.update(extra)
+    r = c.post("/events/new", data)
+    assert r.status_code == 302, r.get_data(as_text=True)
+    return int(r.headers["Location"].split("/")[-1])
+
+
+def slots_of(app, event_id):
+    return [dict(r) for r in db_of(app).execute(
+        "SELECT * FROM roster_slots WHERE event_id = ? ORDER BY id", (event_id,))]
+
+
+def test_roster_assign_signup_and_swap(admin, app, monkeypatch):
+    from datetime import datetime
+    from app import utils
+    monkeypatch.setattr(utils, "now_local", lambda: datetime(2026, 12, 1, 9, 0))
+    eva = login_as(app, admin, "eva", "member")
+    ivan = login_as(app, admin, "ivan", "member")
+    auditor = login_as(app, admin, "aud", "auditor")
+    ids = {u: i for i, u in db_of(app).execute("SELECT id, username FROM users")}
+    event_id = add_event(admin)
+    app.extensions["sent_notifications"] = []
+    # one reader assigned to Eva, two open server places
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "1", "user_id": str(ids["eva"])})
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "2", "count": "2"})
+    slots = slots_of(app, event_id)
+    assert [(s["role_id"], s["user_id"]) for s in slots] == [(1, ids["eva"]), (2, None), (2, None)]
+    assert any(u == "eva" and "roster" in subj for u, subj, _b in app.extensions["sent_notifications"])
+    # members cannot add places to someone else's event
+    assert eva.post(f"/rosters/event/{event_id}/add", {"role_id": "1"}).status_code == 403
+    # Ivan signs up for an open place; auditors cannot
+    assert auditor.post(f"/rosters/{slots[1]['id']}/take").status_code == 403
+    ivan.post(f"/rosters/{slots[1]['id']}/take")
+    assert slots_of(app, event_id)[1]["user_id"] == ids["ivan"]
+    # taking a place that is already filled does nothing
+    eva.post(f"/rosters/{slots[1]['id']}/take")
+    assert slots_of(app, event_id)[1]["user_id"] == ids["ivan"]
+    # Eva can't come: she asks for a replacement and stays on until someone takes over
+    assert ivan.post(f"/rosters/{slots[0]['id']}/swap", {"note": "x"}).status_code == 403
+    eva.post(f"/rosters/{slots[0]['id']}/swap", {"note": "sick"})
+    s0 = slots_of(app, event_id)[0]
+    assert s0["swap_requested"] == 1 and s0["user_id"] == ids["eva"] and s0["swap_note"] == "sick"
+    page = ivan.get("/rosters/").get_data(as_text=True)
+    assert "Help needed" in page and "sick" in page
+    assert "Help needed on the roster" in ivan.get("/").get_data(as_text=True)
+    app.extensions["sent_notifications"] = []
+    ivan.post(f"/rosters/{slots[0]['id']}/take")
+    s0 = slots_of(app, event_id)[0]
+    assert s0["user_id"] == ids["ivan"] and s0["swap_requested"] == 0
+    assert any(u == "eva" and "replacement" in subj for u, subj, _b in app.extensions["sent_notifications"])
+    # every step is in the audit log, with names instead of ids
+    db = db_of(app)
+    actions = [a for (a,) in db.execute("SELECT action FROM audit_log WHERE entity = 'roster'"
+                                        " ORDER BY id")]
+    assert actions == ["create", "create", "create", "signup", "swap_request", "swap"]
+    last = db.execute("SELECT changes FROM audit_log WHERE action = 'swap'").fetchone()[0]
+    assert "eva" in last and "ivan" in last
+    # the manager removes a place
+    admin.post(f"/rosters/{slots[2]['id']}/remove")
+    assert len(slots_of(app, event_id)) == 2
+    # Ivan's calendar shows his duty; "mine" includes events where he serves
+    token = db.execute("SELECT ical_token FROM users WHERE username = 'ivan'").fetchone()[0]
+    feed = Client(app).get(f"/calendar/{token}.ics?scope=mine").get_data(as_text=True)
+    assert "Sunday Mass" in feed and "🙋" in feed
+
+
+def test_roster_reminders(admin, app, monkeypatch):
+    from datetime import datetime
+    from app import scheduler, utils
+    app.config.update(SMTP_HOST="smtp.test", SMTP_FROM="church@test")
+    eva = login_as(app, admin, "eva", "member")
+    event_id = add_event(admin, date="2026-12-02")
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "1", "user_id": "2"})
+    other = add_event(admin, "Vespers", date="2026-12-03")
+    admin.post(f"/rosters/event/{other}/add", {"role_id": "3"})
+    assert eva  # created
+    sent = []
+    monkeypatch.setattr(scheduler, "deliver", lambda cfg, people, build: sent.extend(
+        (p["username"],) + build("en") for p in people))
+    monkeypatch.setattr(utils, "now_local", lambda: datetime(2026, 12, 1, 8, 0))
+    scheduler.send_daily_notifications(app)
+    assert ("eva", "Reminder: you serve tomorrow") in [(u, s) for u, s, _b in sent]
+    gap = [b for u, s, b in sent if s == "Roster gaps in two days"]
+    assert gap and "Cantor" in gap[0] and "Vespers" in gap[0]
+
+
+def test_roster_roles_admin(admin, app):
+    admin.post("/admin/roster-roles", {"name_sk": "Žalmista", "name_en": "Psalmist"})
+    admin.post("/admin/roster-roles", {"id": "1", "name_sk": "Lektor", "name_en": "Reader"})
+    rows = {r["name_en"]: r["active"] for r in db_of(app).execute("SELECT * FROM roster_roles")}
+    assert rows["Psalmist"] == 1 and rows["Reader"] == 0  # unticked = switched off
+    event_id = add_event(admin)
+    page = admin.get(f"/events/{event_id}").get_data(as_text=True)
+    assert "Psalmist" in page and ">Reader<" not in page
+
+
+# --- event galleries ---------------------------------------------------------------------------
+
+def test_event_galleries(admin, app):
+    pub = add_event(admin, "Advent concert", gallery="public",
+                    description="internal note: key under the mat")
+    mem = add_event(admin, "Youth camp", gallery="members")
+    off = add_event(admin, "Council meeting")
+    for eid in (pub, mem, off):
+        admin.post(f"/events/{eid}/photos", {"photos": (jpeg_bytes(), "p.jpg")},
+                   content_type="multipart/form-data")
+    db = db_of(app)
+    photo = {eid: db.execute("SELECT id FROM photos WHERE entity = 'event' AND entity_id = ?",
+                             (eid,)).fetchone()[0] for eid in (pub, mem, off)}
+    anon = Client(app)
+    page = anon.get("/gallery/").get_data(as_text=True)
+    assert "Advent concert" in page and "Youth camp" not in page and "Council" not in page
+    page = anon.get(f"/gallery/{pub}").get_data(as_text=True)
+    assert "Advent concert" in page and "key under the mat" not in page
+    assert anon.get(f"/gallery/{mem}").status_code == 302  # asked to log in
+    r = anon.get(f"/gallery/photo/{photo[pub]}/thumb")
+    assert r.status_code == 200 and r.mimetype == "image/jpeg" and "public" in r.headers["Cache-Control"]
+    assert anon.get(f"/gallery/photo/{photo[mem]}").status_code == 404
+    assert anon.get(f"/gallery/photo/{photo[off]}").status_code == 404
+    assert anon.get(f"/uploads/x.jpg").status_code == 302  # normal uploads still need login
+    # members see members-only galleries too, but not the ones switched off
+    page = admin.get("/gallery/").get_data(as_text=True)
+    assert "Youth camp" in page and "Council" not in page
+    assert admin.get(f"/gallery/photo/{photo[mem]}").status_code == 200
+    assert admin.get(f"/gallery/{off}").status_code == 404
+    # a hidden photo disappears from the gallery
+    admin.post(f"/items/photos/{photo[pub]}/hide")
+    hidden = db.execute("SELECT hidden FROM photos WHERE id = ?", (photo[pub],)).fetchone()[0]
+    assert hidden == 1
+    assert anon.get(f"/gallery/photo/{photo[pub]}").status_code == 404
+    # the setting change is in the event history
+    admin.post(f"/events/{pub}/edit", {"title": "Advent concert", "type_id": "1",
+                                       "event_date": "2026-12-06", "gallery": "off"})
+    assert anon.get(f"/gallery/{pub}").status_code == 302
+    entry = db.execute("SELECT changes FROM audit_log WHERE entity = 'event' AND entity_id = ?"
+                       " ORDER BY id DESC", (pub,)).fetchone()[0]
+    assert "gallery" in entry
+
+
+def test_roster_and_gallery_pages_render(admin, app):
+    event_id = add_event(admin, gallery="public")
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "1", "user_id": "1"})
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "2"})
+    for lang in ("en", "sk"):
+        admin.post(f"/language/{lang}", {"next": "/"})
+        for url in ("/rosters/", f"/events/{event_id}", f"/events/{event_id}/edit", "/gallery/",
+                    "/admin/", "/", "/events/", "/audit/"):
             r = admin.get(url)
             assert r.status_code == 200, (lang, url)
             assert "built-in method" not in r.get_data(as_text=True), (lang, url)

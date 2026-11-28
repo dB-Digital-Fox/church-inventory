@@ -75,6 +75,30 @@ def send_daily_notifications(app):
                     tr("{item}: due on {date}.", lang, item=t["item_name"], date=fmt_local(t["next_due"]))
                     + (f"\n{base}/maintenance/tasks/{t['id']}" if base else "")))
 
+            from .views.rosters import gaps, reminders, role_name
+            for s in reminders(db, tomorrow):
+                person = db.execute("SELECT * FROM users WHERE id = ? AND active = 1",
+                                    (s["user_id"],)).fetchone()
+                if person is None:
+                    continue
+                deliver(cfg, [person], lambda lang, s=s: (
+                    tr("Reminder: you serve tomorrow", lang),
+                    tr("{role} — {event}, {date} {time}", lang, role=role_name(s, lang),
+                       event=s["event_title"], date=fmt_local(s["event_date"]), time=s["start_time"])
+                    + (f" · {s['location']}" if s["location"] else "")
+                    + (f"\n{base}/events/{s['event_id']}" if base else "")))
+            in_two_days = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+            open_slots = gaps(db, in_two_days)
+            if open_slots:
+                managers = db.execute("SELECT * FROM users WHERE active = 1"
+                                      " AND role IN ('admin','manager')").fetchall()
+                deliver(cfg, managers, lambda lang: (
+                    tr("Roster gaps in two days", lang),
+                    "\n".join(f"• {role_name(s, lang)} — {s['event_title']}"
+                              + (f" ({s['full_name']})" if s["full_name"] else "")
+                              for s in open_slots)
+                    + (f"\n{base}/rosters/" if base else "")))
+
             auditors = db.execute(
                 "SELECT * FROM users WHERE role = 'auditor' AND active = 1").fetchall()
             if auditors:

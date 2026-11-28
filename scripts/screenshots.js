@@ -58,6 +58,10 @@ const [base = 'http://127.0.0.1:8123', out = 'docs/screenshots'] = process.argv.
   await shot('/maintenance/', 'maintenance', { full: true });
   await p.goto(base + '/reports/');
   await shot('/reports/assets', 'assets-report', { full: true });
+  await shot('/rosters/', 'rosters', { full: true });
+  await p.goto(base + '/events/?q=2nd+Sunday');
+  const sundayUrl = await first('table a[href^="/events/"]');
+  await shot(sundayUrl, 'event-roster', { full: true });
   await shot('/audit/', 'audit-log');
   await shot('/people/', 'people');
   await p.goto(base + '/profile', { waitUntil: 'networkidle' });
@@ -80,6 +84,12 @@ const [base = 'http://127.0.0.1:8123', out = 'docs/screenshots'] = process.argv.
   await m.goto(base + '/', { waitUntil: 'networkidle' });
   await m.screenshot({ path: `${out}/mobile-dark.png` });
   console.log('saved mobile-dark');
+  // public gallery, as a visitor without an account sees it
+  const anon = await browser.newContext({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 1, colorScheme: 'light' });
+  const a = await anon.newPage();
+  await a.goto(base + '/gallery/', { waitUntil: 'networkidle' });
+  await a.screenshot({ path: `${out}/gallery-public.png` });
+  console.log('saved gallery-public');
   // switch language back
   await sk.locator('footer button.linkbutton').click();
 

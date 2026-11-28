@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('Photo galleries') }}{% endblock %}
+{% block content %}
+{% include 'gallery/_header.html' %}
+<h1>{{ _('Photo galleries') }}</h1>
+{% if rows %}
+<div class="galleries">
+  {% for e in rows %}
+  <a class="gallery-card" href="{{ url_for('gallery.event', event_id=e.id) }}">
+    <img src="{{ url_for('gallery.thumb', photo_id=e.cover_id) }}" alt="" loading="lazy">
+    <span class="title">{{ e.title }}</span>
+    <span class="muted">{{ e.event_date|local }} · {{ type_name(e) }} · {{ _('{n} photos', n=e.photo_count) }}{% if g.user and e.gallery == 'members' %} · 🔒{% endif %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">{{ _('No galleries yet.') }}</p>
+{% endif %}
+{% endblock %}

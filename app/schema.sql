@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS events (
     location      TEXT NOT NULL DEFAULT '',
     description   TEXT NOT NULL DEFAULT '',
     other_participants TEXT NOT NULL DEFAULT '',
+    gallery       TEXT NOT NULL DEFAULT 'off',   -- photo gallery: 'off', 'members' or 'public'
     archived      INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL,
     created_by    INTEGER REFERENCES users(id),
@@ -74,6 +75,29 @@ CREATE TABLE IF NOT EXISTS event_participants (
     user_id   INTEGER NOT NULL REFERENCES users(id),
     PRIMARY KEY (event_id, user_id)
 );
+
+-- Volunteer rosters: roles (reader, altar server…) and who serves at which event.
+CREATE TABLE IF NOT EXISTS roster_roles (
+    id        INTEGER PRIMARY KEY,
+    name_sk   TEXT NOT NULL,
+    name_en   TEXT NOT NULL,
+    active    INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS roster_slots (
+    id             INTEGER PRIMARY KEY,
+    event_id       INTEGER NOT NULL REFERENCES events(id),
+    role_id        INTEGER NOT NULL REFERENCES roster_roles(id),
+    user_id        INTEGER REFERENCES users(id),      -- NULL = open, anyone can sign up
+    swap_requested INTEGER NOT NULL DEFAULT 0,         -- the person is looking for a replacement
+    swap_note      TEXT NOT NULL DEFAULT '',
+    created_at     TEXT NOT NULL,
+    created_by     INTEGER REFERENCES users(id),
+    updated_at     TEXT NOT NULL,
+    updated_by     INTEGER REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS roster_slots_event ON roster_slots(event_id);
+CREATE INDEX IF NOT EXISTS roster_slots_user ON roster_slots(user_id);
 
 -- Photos for items and events. Files are never deleted; "removing" a photo hides it.
 CREATE TABLE IF NOT EXISTS photos (

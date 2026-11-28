@@ -29,6 +29,11 @@ DYNAMIC = [
     "report", "kind", "acquisition", "donor", "unit_value", "useful_life_years", "interval_days",
     "next_due", "responsible_id", "contractor", "notes", "done_on", "performed_by", "result",
     "cost", "task_id",
+    # v0.3: rosters, galleries
+    "roster", "roster_role", "assign", "signup", "swap", "swap_request", "swap_cancel", "delete",
+    "gallery", "role_id", "swap_requested", "swap_note", "off", "members", "public",
+    "You were added to the roster", "You were taken off the roster", "Your replacement is found",
+    "Roster swap", "Replacement needed",
 ]
 
 

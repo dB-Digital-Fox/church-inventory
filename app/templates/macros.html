@@ -124,3 +124,41 @@
   </tbody>
 </table></div>
 {% endmacro %}
+
+{% macro slot_actions(s, next=None) -%}
+  {%- if s.user_id == g.user.id %}
+    {% if s.swap_requested %}
+    <form method="post" action="{{ url_for('rosters.request_swap', slot_id=s.id) }}" class="inline">{{ csrf() }}<input type="hidden" name="cancel" value="1">{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="linkbutton">{{ _('I can come after all') }}</button></form>
+    {% else %}
+    <details class="swap"><summary class="linkbutton">{{ _("I can't come") }}</summary>
+      <form method="post" action="{{ url_for('rosters.request_swap', slot_id=s.id) }}" class="inlineform">{{ csrf() }}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <input name="note" maxlength="200" placeholder="{{ _('Note (optional)') }}"><button>{{ _('Ask for a replacement') }}</button>
+      </form>
+    </details>
+    {% endif %}
+  {%- elif (not s.user_id or s.swap_requested) and g.user.role != 'auditor' %}
+    <form method="post" action="{{ url_for('rosters.take', slot_id=s.id) }}" class="inline">{{ csrf() }}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="primary small">{{ _('Take over') if s.user_id else _('Sign up') }}</button></form>
+  {%- endif %}
+{%- endmacro %}
+
+{% macro slot_person(s) -%}
+  {%- if s.user_id %}{{ s.full_name }}{% if s.swap_requested %} <span class="status s-pending" title="{{ s.swap_note }}">{{ _('looking for a replacement') }}</span>{% if s.swap_note %} <span class="muted">„{{ s.swap_note }}“</span>{% endif %}{% endif %}
+  {%- else %}<span class="status s-clash">{{ _('open') }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro duty_table(slots, next=None) %}
+<div class="tablewrap"><table>
+  <thead><tr><th>{{ _('Date') }}</th><th>{{ _('Event') }}</th><th>{{ _('Role') }}</th><th>{{ _('Person') }}</th><th></th></tr></thead>
+  <tbody>
+  {% for s in slots %}
+  <tr class="{{ 'row-clash' if not s.user_id or s.swap_requested }}">
+    <td class="nowrap">{{ s.event_date|local }}{% if s.start_time %} {{ s.start_time }}{% endif %}</td>
+    <td><a href="{{ url_for('events.detail', event_id=s.event_id) }}#roster">{{ s.event_title }}</a></td>
+    <td>{{ role_name(s) }}</td>
+    <td>{{ slot_person(s) }}</td>
+    <td class="nowrap">{{ slot_actions(s, next) }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}

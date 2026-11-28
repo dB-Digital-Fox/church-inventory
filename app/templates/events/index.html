@@ -6,6 +6,8 @@
   <h1>{{ _('Events') }}</h1>
   <div class="actions">
     {% if can('event.create') %}<a class="button primary" href="{{ url_for('events.new') }}">+ {{ _('Log event') }}</a>{% endif %}
+    <a class="button" href="{{ url_for('rosters.index') }}">🙋 {{ _('Rosters') }}</a>
+    <a class="button" href="{{ url_for('gallery.index') }}">🖼 {{ _('Galleries') }}</a>
     <a class="button" href="{{ url_for('events.export_csv', **args) }}">CSV</a>
   </div>
 </div>

@@ -1,6 +1,29 @@
 {% extends 'base.html' %}
 {% import 'macros.html' as m with context %}
-{% block title %}{{ _('Administration') }}{% endblock %}
+{% block title %}{{ _('Administration') }}<section class="card" id="roster-roles">
+  <h2>{{ _('Roster roles') }}</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>{{ _('Slovak name') }}</th><th>{{ _('English name') }}</th><th>{{ _('Active') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in roster_roles %}
+    {% set fid = 'rr' ~ r.id %}
+    <tr>
+      <td><input form="{{ fid }}" name="name_sk" value="{{ r.name_sk }}" required></td>
+      <td><input form="{{ fid }}" name="name_en" value="{{ r.name_en }}" required></td>
+      <td><input form="{{ fid }}" type="checkbox" name="active" value="1" {{ 'checked' if r.active }}></td>
+      <td><form id="{{ fid }}" method="post" action="{{ url_for('admin.roster_role_save') }}">{{ m.csrf() }}<input type="hidden" name="id" value="{{ r.id }}"><button>{{ _('Save') }}</button></form></td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td><input form="rrnew" name="name_sk" placeholder="{{ _('New role') }} (SK)" required></td>
+      <td><input form="rrnew" name="name_en" placeholder="{{ _('New role') }} (EN)" required></td>
+      <td></td>
+      <td><form id="rrnew" method="post" action="{{ url_for('admin.roster_role_save') }}">{{ m.csrf() }}<button>+ {{ _('Add') }}</button></form></td>
+    </tr>
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}
 {% block content %}
 <h1>{{ _('Administration') }}</h1>
 <div class="grid2">
@@ -51,6 +74,29 @@
       <td><input form="etnew" name="name_en" placeholder="{{ _('New type') }} (EN)" required></td>
       <td><input form="etnew" type="color" name="color" value="#6b7280"></td><td></td>
       <td><form id="etnew" method="post" action="{{ url_for('admin.event_type_save') }}">{{ m.csrf() }}<button>+ {{ _('Add') }}</button></form></td>
+    </tr>
+    </tbody>
+  </table></div>
+</section>
+<section class="card" id="roster-roles">
+  <h2>{{ _('Roster roles') }}</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>{{ _('Slovak name') }}</th><th>{{ _('English name') }}</th><th>{{ _('Active') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in roster_roles %}
+    {% set fid = 'rr' ~ r.id %}
+    <tr>
+      <td><input form="{{ fid }}" name="name_sk" value="{{ r.name_sk }}" required></td>
+      <td><input form="{{ fid }}" name="name_en" value="{{ r.name_en }}" required></td>
+      <td><input form="{{ fid }}" type="checkbox" name="active" value="1" {{ 'checked' if r.active }}></td>
+      <td><form id="{{ fid }}" method="post" action="{{ url_for('admin.roster_role_save') }}">{{ m.csrf() }}<input type="hidden" name="id" value="{{ r.id }}"><button>{{ _('Save') }}</button></form></td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td><input form="rrnew" name="name_sk" placeholder="{{ _('New role') }} (SK)" required></td>
+      <td><input form="rrnew" name="name_en" placeholder="{{ _('New role') }} (EN)" required></td>
+      <td></td>
+      <td><form id="rrnew" method="post" action="{{ url_for('admin.roster_role_save') }}">{{ m.csrf() }}<button>+ {{ _('Add') }}</button></form></td>
     </tr>
     </tbody>
   </table></div>

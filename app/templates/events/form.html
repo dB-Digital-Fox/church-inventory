@@ -26,7 +26,14 @@
     </div>
   </fieldset>
   <label>{{ _('Short write-up') }}<textarea name="description" rows="6" placeholder="{{ _('What happened, what was used, anything worth remembering…') }}">{{ event.description or '' }}</textarea></label>
-  <label>{{ _('Photos') }}<input type="file" name="photos" accept="image/*" multiple></label>
+  <div class="grid2">
+    <label>{{ _('Photos') }}<input type="file" name="photos" accept="image/*" multiple></label>
+    <label>{{ _('Photo gallery') }}<select name="gallery">
+      {% for code, label in [('off', _('Off')), ('members', _('Members only')), ('public', _('Public, no login needed'))] %}
+      <option value="{{ code }}" {{ 'selected' if (event.gallery or 'off') == code }}>{{ label }}</option>{% endfor %}
+    </select>
+    <small class="muted">{{ _('Publish only photos the people in them agreed to, especially children (GDPR).') }}</small></label>
+  </div>
   <div class="actions">
     <button class="primary">{{ _('Save') }}</button>
     <a class="button" href="{{ url_for('events.detail', event_id=event_id) if editing else url_for('events.index') }}">{{ _('Cancel') }}</a>

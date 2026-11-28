@@ -26,6 +26,7 @@ def index():
     return render_template(
         "admin/index.html",
         types=db.execute("SELECT * FROM event_types ORDER BY id").fetchall(),
+        roster_roles=db.execute("SELECT * FROM roster_roles ORDER BY id").fetchall(),
         backups=list_backups(cfg["BACKUP_DIR"]),
         email_on=notify.email_enabled(cfg), whatsapp_on=notify.whatsapp_enabled(cfg),
         db_size=db_size, audit_count=db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0],
@@ -62,6 +63,36 @@ def event_type_save():
             audit.record(db, "create", "event_type", cur.lastrowid, summary=data["name_en"], after=data)
     flash(_("Changes saved."), "success")
     return redirect(url_for("admin.index"))
+
+
+@bp.route("/roster-roles", methods=["POST"])
+@require("admin")
+def roster_role_save():
+    db = get_db()
+    f = request.form
+    role_id = to_int(f.get("id"))
+    data = {"name_sk": f.get("name_sk", "").strip(), "name_en": f.get("name_en", "").strip(),
+            "active": 1 if f.get("active") or not role_id else 0}
+    if not data["name_sk"] or not data["name_en"]:
+        flash(_("Enter the name in both languages."), "error")
+        return redirect(url_for("admin.index") + "#roster-roles")
+    with transaction(db):
+        if role_id:
+            before = db.execute("SELECT name_sk, name_en, active FROM roster_roles WHERE id = ?",
+                                (role_id,)).fetchone()
+            if before is None:
+                abort(404)
+            db.execute("UPDATE roster_roles SET name_sk=:name_sk, name_en=:name_en, active=:active"
+                       " WHERE id=:id", dict(data, id=role_id))
+            audit.record(db, "update", "roster_role", role_id, summary=data["name_en"],
+                         before=dict(before), after=data)
+        else:
+            cur = db.execute("INSERT INTO roster_roles (name_sk, name_en, active) VALUES"
+                             " (:name_sk, :name_en, :active)", data)
+            audit.record(db, "create", "roster_role", cur.lastrowid, summary=data["name_en"],
+                         after=data)
+    flash(_("Changes saved."), "success")
+    return redirect(url_for("admin.index") + "#roster-roles")
 
 
 @bp.route("/backup", methods=["POST"])

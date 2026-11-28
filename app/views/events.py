@@ -13,7 +13,8 @@ from .reservations import BASE_SQL as RES_SQL, annotate_clashes
 bp = Blueprint("events", __name__, url_prefix="/events")
 
 FIELDS = ("title", "type_id", "event_date", "start_time", "end_time", "location", "description",
-          "other_participants")
+          "other_participants", "gallery")
+GALLERY_MODES = ("off", "members", "public")
 
 EVENT_SQL = ("SELECT e.*, t.name_sk, t.name_en, t.color, cu.full_name AS creator_name"
              " FROM events e JOIN event_types t ON t.id = e.type_id"
@@ -60,6 +61,7 @@ def parse_form(db, form):
         "location": form.get("location", "").strip(),
         "description": form.get("description", "").strip(),
         "other_participants": form.get("other_participants", "").strip(),
+        "gallery": form.get("gallery") if form.get("gallery") in GALLERY_MODES else "off",
     }
     errors = []
     if not data["title"]:
@@ -161,9 +163,9 @@ def new():
         with transaction(db):
             cur = db.execute(
                 "INSERT INTO events (title, type_id, event_date, start_time, end_time, location,"
-                " description, other_participants, created_at, created_by, updated_at, updated_by)"
-                " VALUES (:title, :type_id, :event_date, :start_time, :end_time, :location,"
-                " :description, :other_participants, :now, :uid, :now, :uid)",
+                " description, other_participants, gallery, created_at, created_by, updated_at,"
+                " updated_by) VALUES (:title, :type_id, :event_date, :start_time, :end_time,"
+                " :location, :description, :other_participants, :gallery, :now, :uid, :now, :uid)",
                 dict(data, now=now, uid=g.user["id"]))
             event_id = cur.lastrowid
             db.executemany("INSERT INTO event_participants (event_id, user_id) VALUES (?, ?)",
@@ -188,10 +190,16 @@ def detail(event_id):
     event = load(db, event_id)
     reservations = annotate_clashes(db, db.execute(
         RES_SQL + "WHERE r.event_id = ? ORDER BY r.start_at", (event_id,)).fetchall())
+    from .rosters import can_manage, event_slots, roles
+    slots = event_slots(db, event_id)
     return render_template("events/detail.html", event=event, people=participants(db, event_id),
                            photos=photos_for(db, "event", event_id), reservations=reservations,
                            history=audit.history(db, "event", event_id),
-                           can_edit=can_edit_event(event))
+                           can_edit=can_edit_event(event), slots=slots,
+                           can_roster=can_manage(event), roster_roles=roles(db),
+                           active_users=db.execute("SELECT id, full_name FROM users WHERE active = 1"
+                                                   " AND role != 'auditor' ORDER BY full_name"
+                                                   ).fetchall())
 
 
 @bp.route("/<int:event_id>/edit", methods=["GET", "POST"])
@@ -214,7 +222,7 @@ def edit(event_id):
             db.execute("UPDATE events SET title=:title, type_id=:type_id, event_date=:event_date,"
                        " start_time=:start_time, end_time=:end_time, location=:location,"
                        " description=:description, other_participants=:other_participants,"
-                       " updated_at=:now, updated_by=:uid WHERE id=:id",
+                       " gallery=:gallery, updated_at=:now, updated_by=:uid WHERE id=:id",
                        dict(data, now=audit.utcnow(), uid=g.user["id"], id=event_id))
             db.execute("DELETE FROM event_participants WHERE event_id = ?", (event_id,))
             db.executemany("INSERT INTO event_participants (event_id, user_id) VALUES (?, ?)",
