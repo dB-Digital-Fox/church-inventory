@@ -55,4 +55,7 @@ EN = {
     "off": "off",
     "members": "members only",
     "public": "public",
+    "check": "checked",
+    "check_id": "check no.",
+    "checked_at": "checked at",
 }

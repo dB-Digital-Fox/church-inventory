@@ -99,6 +99,20 @@ CREATE TABLE IF NOT EXISTS roster_slots (
 CREATE INDEX IF NOT EXISTS roster_slots_event ON roster_slots(event_id);
 CREATE INDEX IF NOT EXISTS roster_slots_user ON roster_slots(user_id);
 
+-- Quick checks from the phone app (stocktaking): seen, where, in what condition.
+CREATE TABLE IF NOT EXISTS item_checks (
+    id          INTEGER PRIMARY KEY,
+    uid         TEXT NOT NULL UNIQUE,               -- made on the phone; makes syncing safe to repeat
+    item_id     INTEGER NOT NULL REFERENCES items(id),
+    checked_at  TEXT NOT NULL,                      -- local time on the phone, YYYY-MM-DDTHH:MM
+    condition   TEXT NOT NULL DEFAULT '',
+    location    TEXT NOT NULL DEFAULT '',
+    note        TEXT NOT NULL DEFAULT '',
+    user_id     INTEGER REFERENCES users(id),
+    synced_at   TEXT NOT NULL                       -- UTC, when the server received it
+);
+CREATE INDEX IF NOT EXISTS item_checks_item ON item_checks(item_id, checked_at);
+
 -- Photos for items and events. Files are never deleted; "removing" a photo hides it.
 CREATE TABLE IF NOT EXISTS photos (
     id            INTEGER PRIMARY KEY,

@@ -110,6 +110,16 @@ def create_app(overrides=None):
 
     from .views.rosters import role_name
 
+    # Static files are cached hard (also by the phone app), so their URLs change whenever they do.
+    import hashlib
+    digest = hashlib.sha256()
+    for name in sorted(os.listdir(app.static_folder)):
+        full = os.path.join(app.static_folder, name)
+        if os.path.isfile(full):
+            with open(full, "rb") as f:
+                digest.update(name.encode() + f.read())
+    app.config["ASSET_VERSION"] = f"{__version__}-{digest.hexdigest()[:8]}"
+
     @app.context_processor
     def _inject():
         return {
@@ -124,6 +134,7 @@ def create_app(overrides=None):
             "org_name": app.config["ORG_NAME"],
             "source_url": app.config["SOURCE_URL"],
             "version": __version__,
+            "asset_v": app.config["ASSET_VERSION"],
         }
 
     app.jinja_env.filters["dt"] = utils.fmt_dt
@@ -139,9 +150,9 @@ def create_app(overrides=None):
         return render_template("error.html", error=err), err.code
 
     from .views import (admin, audit_views, calendar, events, gallery, items, main, maintenance,
-                        reports, reservations, rosters, users)
+                        mobile, reports, reservations, rosters, users)
     for module in (main, items, events, reservations, users, audit_views, calendar, admin,
-                   maintenance, reports, rosters, gallery):
+                   maintenance, reports, rosters, gallery, mobile):
         app.register_blueprint(module.bp)
 
     from . import cli

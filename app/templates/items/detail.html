@@ -59,6 +59,15 @@
   {% endif %}
 </section>
 <section class="card">
+  <div class="head">
+    <h2>📱 {{ _('Checks') }}</h2>
+    <div class="actions"><a class="button" href="{{ url_for('mobile.home', item=item.id) }}">✓ {{ _('Check now') }}</a></div>
+  </div>
+  {% for c in checks %}
+  <div class="listrow"><span class="date">{{ c.checked_at|local }}</span> <strong>{{ c.full_name or '—' }}</strong>{% if c.condition %} · {{ _(c.condition) }}{% endif %}{% if c.location %} · {{ c.location }}{% endif %}{% if c.note %} <span class="muted">— {{ c.note }}</span>{% endif %}</div>
+  {% else %}<p class="muted">{{ _('Not checked yet. Scan the QR label with the phone app to record where it is and its condition.') }}</p>{% endfor %}
+</section>
+<section class="card">
   <h2>{{ _('Current and upcoming reservations') }}</h2>
   {{ m.reservation_table(reservations, show_item=False) }}
   {% if past %}

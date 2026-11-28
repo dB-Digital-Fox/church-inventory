@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ _('Assets and donations') }} {{ year }} · {{ org_name }}</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='report.css') }}?v={{ version }}">
-<script src="{{ url_for('static', filename='app.js') }}?v={{ version }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='report.css') }}?v={{ asset_v }}">
+<script src="{{ url_for('static', filename='app.js') }}?v={{ asset_v }}" defer></script>
 </head>
 <body>
 <p class="noprint">
   <a href="{{ url_for('reports.index') }}">← {{ _('Reports') }}</a> ·
   <button class="print">🖨 {{ _('Print / save as PDF') }}</button>
+  <a href="{{ url_for('reports.assets', year=year, format='xlsx') }}">Excel</a> ·
   <a href="{{ url_for('reports.assets', year=year, format='csv') }}">CSV</a>
   {% block extra_formats %}{% endblock %}
 </p>

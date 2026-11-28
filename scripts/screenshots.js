@@ -62,6 +62,8 @@ const [base = 'http://127.0.0.1:8123', out = 'docs/screenshots'] = process.argv.
   await p.goto(base + '/events/?q=2nd+Sunday');
   const sundayUrl = await first('table a[href^="/events/"]');
   await shot(sundayUrl, 'event-roster', { full: true });
+  await shot('/reports/', 'reports');
+  await shot('/reports/events', 'event-summary', { full: true });
   await shot('/audit/', 'audit-log');
   await shot('/people/', 'people');
   await p.goto(base + '/profile', { waitUntil: 'networkidle' });
@@ -84,6 +86,13 @@ const [base = 'http://127.0.0.1:8123', out = 'docs/screenshots'] = process.argv.
   await m.goto(base + '/', { waitUntil: 'networkidle' });
   await m.screenshot({ path: `${out}/mobile-dark.png` });
   console.log('saved mobile-dark');
+  const ml = await mobile.newPage();
+  await ml.goto(base + '/m/?item=3', { waitUntil: 'networkidle' });
+  await ml.waitForSelector('#checkform:not([hidden])');
+  await ml.fill('#checkform textarea[name=note]', 'Two chairs wobbly, set aside');
+  await ml.evaluate(() => window.scrollTo(0, 0));
+  await ml.screenshot({ path: `${out}/mobile-quick-check.png`, fullPage: true });
+  console.log('saved mobile-quick-check');
   // public gallery, as a visitor without an account sees it
   const anon = await browser.newContext({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 1, colorScheme: 'light' });
   const a = await anon.newPage();

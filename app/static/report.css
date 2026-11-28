@@ -10,3 +10,5 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 tfoot th { background: #f3f4f6; }
 h2 { font-size: 13pt; margin-top: 1.5rem; }
 .muted { color: #6b7280; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }

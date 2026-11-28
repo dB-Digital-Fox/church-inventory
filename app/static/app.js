@@ -1,5 +1,16 @@
 // Small progressive enhancements. Everything works without JavaScript too.
 document.addEventListener("DOMContentLoaded", function () {
+  // Phone app: register the service worker for logged-in people; forget cached pages on logout.
+  if ("serviceWorker" in navigator) {
+    if (document.body.dataset.sw) {
+      navigator.serviceWorker.register(document.body.dataset.sw, { scope: "/" }).catch(function () {});
+    }
+    var logout = document.getElementById("logout");
+    if (logout) logout.addEventListener("submit", function () {
+      if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("logout");
+    });
+  }
+
   document.querySelectorAll("form[data-confirm]").forEach(function (form) {
     form.addEventListener("submit", function (e) {
       if (!window.confirm(form.dataset.confirm)) e.preventDefault();

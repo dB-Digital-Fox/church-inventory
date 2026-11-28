@@ -2,14 +2,53 @@
 {% block title %}{{ _('Reports') }}{% endblock %}
 {% block content %}
 <h1>{{ _('Reports') }}</h1>
+<p class="muted">{{ _('Every report opens as a printable page (use your browser to print or save it as PDF) or downloads as an Excel file. Each export is written to the audit log.') }}</p>
 <div class="grid2">
+  <section class="card">
+    <h2>📋 {{ _('Event summary for the parish council') }}</h2>
+    <p class="muted">{{ _('Events in a period by type, who helped how often, and every event with its write-up.') }}</p>
+    <form method="get" action="{{ url_for('reports.events') }}" class="inlineform">
+      <label>{{ _('From') }} <input type="date" name="from" value="{{ year }}-01-01"></label>
+      <label>{{ _('To') }} <input type="date" name="to" value="{{ today }}"></label>
+      <button class="primary">{{ _('Open report') }}</button>
+      <button name="format" value="xlsx">Excel</button>
+    </form>
+  </section>
   <section class="card">
     <h2>💶 {{ _('Assets and donations') }}</h2>
     <p class="muted">{{ _('Value of everything the parish owns, depreciation for the year, and the list of donations received. For the diocese, the parish council or insurance.') }}</p>
     <form method="get" action="{{ url_for('reports.assets') }}" class="inlineform">
       <label>{{ _('Year') }} <input type="number" name="year" value="{{ year }}" min="1990" max="2100"></label>
       <button class="primary">{{ _('Open report') }}</button>
+      <button name="format" value="xlsx">Excel</button>
     </form>
   </section>
+  <section class="card">
+    <h2>📦 {{ _('Inventory list') }}</h2>
+    <p class="muted">{{ _('All items and rooms with location, condition, value and when each was last checked.') }}</p>
+    <p class="inlineform">
+      <a class="button primary" href="{{ url_for('reports.inventory_xlsx') }}">Excel</a>
+      <a class="button" href="{{ url_for('items.labels') }}">🏷 {{ _('QR labels for everything') }}</a>
+    </p>
+  </section>
+  <section class="card">
+    <h2>🔧 {{ _('Maintenance and inspections') }}</h2>
+    <p class="muted">{{ _('All maintenance work done in a year, with result and cost.') }}</p>
+    <form method="get" action="{{ url_for('reports.maintenance_xlsx') }}" class="inlineform">
+      <label>{{ _('Year') }} <input type="number" name="year" value="{{ year }}" min="1990" max="2100"></label>
+      <button class="primary">Excel</button>
+    </form>
+  </section>
+  {% if can('audit.view') %}
+  <section class="card">
+    <h2>🔒 {{ _('Annual audit export') }}</h2>
+    <p class="muted">{{ _('Every change recorded in a year with before and after values, plus an integrity check of the whole log and its fingerprints.') }}</p>
+    <form method="get" action="{{ url_for('reports.audit_year') }}" class="inlineform">
+      <label>{{ _('Year') }} <input type="number" name="year" value="{{ year }}" min="1990" max="2100"></label>
+      <button class="primary">Excel</button>
+      <a class="button" href="{{ url_for('audit.report') }}">{{ _('Printable audit report') }}</a>
+    </form>
+  </section>
+  {% endif %}
 </div>
 {% endblock %}

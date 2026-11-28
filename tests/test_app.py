@@ -1,3 +1,4 @@
+import io
 import json
 
 from app import audit
@@ -672,6 +673,130 @@ def test_roster_and_gallery_pages_render(admin, app):
         admin.post(f"/language/{lang}", {"next": "/"})
         for url in ("/rosters/", f"/events/{event_id}", f"/events/{event_id}/edit", "/gallery/",
                     "/admin/", "/", "/events/", "/audit/"):
+            r = admin.get(url)
+            assert r.status_code == 200, (lang, url)
+            assert "built-in method" not in r.get_data(as_text=True), (lang, url)
+
+
+# --- reports and exports -----------------------------------------------------------------------
+
+def read_xlsx(response):
+    from openpyxl import load_workbook
+    assert response.status_code == 200, response.get_data(as_text=True)[:500]
+    assert response.mimetype.endswith("spreadsheetml.sheet")
+    return load_workbook(io.BytesIO(response.get_data()))
+
+
+def test_excel_exports(admin, app):
+    add_item(admin, "Chalice", acquisition="donation", donor="Novák family", unit_value="1200",
+             purchase_date="2026-03-01")
+    add_item(admin, "=HYPERLINK(\"http://evil\")")  # typed text never becomes a formula
+    wb = read_xlsx(admin.get("/reports/inventory.xlsx"))
+    ws = wb.worksheets[0]
+    values = [c.value for row in ws.iter_rows() for c in row]
+    assert "Chalice" in values and "Novák family" in values
+    formula = [c for row in ws.iter_rows() for c in row if str(c.value).startswith("=HYPERLINK")][0]
+    assert formula.data_type == "s"
+    wb = read_xlsx(admin.get("/reports/assets?year=2026&format=xlsx"))
+    assert len(wb.worksheets) == 2 and wb.worksheets[1].max_row >= 2
+    event_id = add_event(admin, "Choir rehearsal", date="2026-11-10",
+                         description="New songs for Advent", participants=["1"])
+    admin.post(f"/rosters/event/{event_id}/add", {"role_id": "3", "user_id": "1"})
+    page = admin.get("/reports/events?from=2026-11-01&to=2026-11-30").get_data(as_text=True)
+    assert "Choir rehearsal" in page and "New songs for Advent" in page and "Cantor" in page
+    wb = read_xlsx(admin.get("/reports/events?from=2026-11-01&to=2026-11-30&format=xlsx"))
+    assert [ws.title for ws in wb.worksheets] == ["Events", "By type", "By person"]
+    assert wb["By person"]["A2"].value == "Admin Person" and wb["By person"]["B2"].value == 1
+    wb = read_xlsx(admin.get("/reports/maintenance.xlsx?year=2026"))
+    assert wb.worksheets[0].title == "Maintenance"
+
+
+def test_annual_audit_export(admin, app):
+    add_item(admin, "Bell")
+    wb = read_xlsx(admin.get("/reports/audit-year.xlsx?year=2026"))
+    integrity = {r[0].value: r[1].value for r in wb["Integrity"].iter_rows(min_row=2)}
+    assert integrity["Year"] == 2026 and "chain intact" in integrity["Whole log checked now"]
+    log = wb["Audit log"]
+    summaries = [r[6].value for r in log.iter_rows(min_row=2)]
+    assert "Bell" in summaries
+    db = db_of(app)
+    last_hash = db.execute("SELECT hash FROM audit_log WHERE ts LIKE '2026%' ORDER BY id DESC"
+                           ).fetchone()[0]
+    assert integrity["Fingerprint of the last entry of the year"] is not None
+    assert len(last_hash) == 64
+    # an empty year still works; members may not export the audit log
+    assert read_xlsx(admin.get("/reports/audit-year.xlsx?year=2001"))["Integrity"]["B3"].value == 0
+    member = login_as(app, admin, "mia", "member")
+    assert member.get("/reports/audit-year.xlsx").status_code == 403
+    assert member.get("/reports/events").status_code == 403
+    # every export is logged
+    assert db.execute("SELECT COUNT(*) FROM audit_log WHERE action = 'export'").fetchone()[0] >= 2
+
+
+# --- phone app: offline checks -----------------------------------------------------------------
+
+def test_offline_checks_sync(admin, app):
+    item_id = add_item(admin, "Projector", location="Sacristy")
+    member = login_as(app, admin, "eva", "member")
+    page = member.get("/m/").get_data(as_text=True)
+    assert "Scan QR label" in page and "mobile.js" in page
+    items = member.get("/m/items.json").json["items"]
+    assert any(i["id"] == item_id and i["name"] == "Projector" for i in items)
+    entries = [
+        {"uid": "aaaaaaaa0001", "item_id": item_id, "checked_at": "2026-11-27T10:15",
+         "condition": "damaged", "location": "Parish hall", "note": "lens scratched"},
+        {"uid": "aaaaaaaa0002", "item_id": 9999, "checked_at": "2026-11-27T10:16", "condition": "good"},
+        {"uid": "aaaaaaaa0003", "item_id": item_id, "checked_at": "nonsense"},
+        {"uid": "bad uid!", "item_id": item_id, "checked_at": "2026-11-27T10:17"},
+    ]
+    token = member.token()
+    r = member.c.post("/m/sync", json={"entries": entries}, headers={"X-CSRF-Token": token})
+    assert r.status_code == 200
+    assert r.json["saved"] == ["aaaaaaaa0001"]
+    assert set(r.json["errors"]) == {"aaaaaaaa0002", "aaaaaaaa0003"}
+    # sending the same check again (e.g. the connection dropped before the answer) is harmless
+    r = member.c.post("/m/sync", json={"entries": entries[:1]}, headers={"X-CSRF-Token": token})
+    assert r.json["saved"] == [] and r.json["duplicate"] == ["aaaaaaaa0001"]
+    db = db_of(app)
+    item = db.execute("SELECT condition, location FROM items WHERE id = ?", (item_id,)).fetchone()
+    assert tuple(item) == ("damaged", "Parish hall")
+    assert db.execute("SELECT COUNT(*) FROM item_checks").fetchone()[0] == 1
+    actions = [a for (a,) in db.execute("SELECT action FROM audit_log WHERE entity = 'item'"
+                                        " AND entity_id = ? ORDER BY id", (item_id,))]
+    assert actions[-2:] == ["check", "update"]
+    page = admin.get(f"/items/{item_id}").get_data(as_text=True)
+    assert "lens scratched" in page and "eva" in page
+    wb = read_xlsx(admin.get("/reports/inventory.xlsx"))
+    row = [r for r in wb.worksheets[0].iter_rows(values_only=True) if r[1] == "Projector"][0]
+    assert row[-2] == "2026-11-27" or str(row[-2]).startswith("2026-11-27")
+    # no CSRF token, not logged in, or auditor: refused
+    assert member.c.post("/m/sync", json={"entries": []}).status_code == 400
+    assert Client(app).c.post("/m/sync", json={"entries": []},
+                              headers={"X-CSRF-Token": "x"}).status_code in (400, 401)
+    auditor = login_as(app, admin, "aud", "auditor")
+    assert auditor.c.post("/m/sync", json={"entries": []},
+                          headers={"X-CSRF-Token": auditor.token()}).status_code == 403
+
+
+def test_pwa_files(admin, app):
+    c = Client(app)
+    r = c.get("/manifest.webmanifest")
+    assert r.status_code == 200 and r.json["start_url"] == "/m/" and r.json["display"] == "standalone"
+    r = c.get("/sw.js")
+    body = r.get_data(as_text=True)
+    assert r.mimetype == "application/javascript" and "__VERSION__" not in body
+    assert r.headers["Service-Worker-Allowed"] == "/"
+    for name in ("icon-192.png", "icon-512.png", "mobile.js", "vendor/jsQR.js"):
+        assert c.get(f"/static/{name}").status_code == 200, name
+    page = admin.get("/").get_data(as_text=True)
+    assert 'rel="manifest"' in page and "data-sw=" in page
+
+
+def test_export_pages_render(admin, app):
+    add_item(admin, "Lamp")
+    for lang in ("en", "sk"):
+        admin.post(f"/language/{lang}", {"next": "/"})
+        for url in ("/reports/", "/reports/events", "/m/", "/items/1", "/items/"):
             r = admin.get(url)
             assert r.status_code == 200, (lang, url)
             assert "built-in method" not in r.get_data(as_text=True), (lang, url)

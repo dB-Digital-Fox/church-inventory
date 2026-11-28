@@ -176,7 +176,11 @@ def detail(item_id):
                            reservations=reservations, past=past,
                            history=audit.history(db, "item", item_id),
                            tasks=item_tasks(db, item_id), mlog=item_log(db, item_id),
-                           total_value=total_value(item), book_value=book_value(item))
+                           total_value=total_value(item), book_value=book_value(item),
+                           checks=db.execute(
+                               "SELECT c.*, u.full_name FROM item_checks c LEFT JOIN users u"
+                               " ON u.id = c.user_id WHERE c.item_id = ?"
+                               " ORDER BY c.checked_at DESC, c.id DESC LIMIT 20", (item_id,)).fetchall())
 
 
 @bp.route("/<int:item_id>/edit", methods=["GET", "POST"])

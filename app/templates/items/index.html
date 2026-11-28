@@ -8,7 +8,9 @@
   <div class="actions">
     {% if can('item.edit') %}<a class="button primary" href="{{ url_for('items.new', kind=kind) }}">+ {{ _('Add space') if spaces else _('Add item') }}</a>{% endif %}
     {% if spaces and can('reservation.create') %}<a class="button" href="{{ url_for('reservations.new') }}">{{ _('Book a room') }}</a>{% endif %}
+    <a class="button" href="{{ url_for('mobile.home') }}">📱 {{ _('Quick check') }}</a>
     <a class="button" href="{{ url_for('items.export_csv', **args) }}">CSV</a>
+    {% if can('reports.view') %}<a class="button" href="{{ url_for('reports.inventory_xlsx', **args) }}">Excel</a>{% endif %}
   </div>
 </div>
 {% if spaces %}<p class="muted">{{ _('Rooms are booked like items: the booking shows in everyone’s calendar, and two bookings at the same time are flagged as a clash.') }}</p>{% endif %}

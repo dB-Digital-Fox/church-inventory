@@ -31,6 +31,7 @@ code { font-size: .85em; word-break: break-all; }
 .topbar nav a.on, .topbar nav a:hover { background: var(--bg); color: var(--accent); }
 .spacer { flex: 1; }
 .navtoggle, .navbutton { display: none; }
+@media (min-width: 1181px) { .topbar nav a.mobileonly { display: none; } }
 @media (max-width: 1180px) {
   .navbutton { display: block; margin-left: auto; font-size: 1.4rem; cursor: pointer; }
   .topbar nav { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; }
@@ -175,3 +176,12 @@ ul.roster .role::after { content: ":"; }
 .gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; }
 .assign select { width: auto; display: inline-block; margin: 0; max-width: 12rem; }
 .assign { white-space: nowrap; }
+
+/* phone app */
+button.big, .button.big { padding: .8rem 1.2rem; font-size: 1.1rem; }
+.scanbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.scanbar form { flex: 1; margin: 0; }
+#camera { margin-top: .75rem; }
+#camera video { width: 100%; max-height: 60vh; border-radius: 8px; background: #000; display: block; margin-bottom: .5rem; }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { padding: .35rem 0; border-top: 1px solid var(--line); }

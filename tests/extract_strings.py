@@ -34,6 +34,8 @@ DYNAMIC = [
     "gallery", "role_id", "swap_requested", "swap_note", "off", "members", "public",
     "You were added to the roster", "You were taken off the roster", "Your replacement is found",
     "Roster swap", "Replacement needed",
+    # v0.4: exports, phone app
+    "check", "check_id", "checked_at",
 ]
 
 

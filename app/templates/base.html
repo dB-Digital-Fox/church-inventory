@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ org_name }}{% endblock %} · {{ org_name }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ asset_v }}">
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
-  <script src="{{ url_for('static', filename='app.js') }}?v={{ version }}" defer></script>
+  <script src="{{ url_for('static', filename='app.js') }}?v={{ asset_v }}" defer></script>
+  <link rel="manifest" href="{{ url_for('mobile.manifest') }}">
+  <meta name="theme-color" content="#5b21b6">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if g.user %} data-sw="{{ url_for('mobile.service_worker') }}"{% endif %}>
 {% if g.user %}
 <header class="topbar">
   <a class="brand" href="{{ url_for('main.dashboard') }}">✝ {{ org_name }}</a>
@@ -17,6 +21,7 @@
   <nav>
     {% set ep = request.endpoint or '' %}
     <a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if ep == 'main.dashboard' }}">{{ _('Overview') }}</a>
+    <a href="{{ url_for('mobile.home') }}" class="mobileonly {{ 'on' if ep.startswith('mobile.') }}">📱 {{ _('Quick check') }}</a>
     {% set is_space = request.args.get('kind') == 'space' or (item is defined and item.kind == 'space') %}
     <a href="{{ url_for('items.index') }}" class="{{ 'on' if ep.startswith('items.') and not is_space }}">{{ _('Inventory') }}</a>
     <a href="{{ url_for('items.index', kind='space') }}" class="{{ 'on' if ep.startswith('items.') and is_space }}">{{ _('Rooms') }}</a>
@@ -30,7 +35,7 @@
     {% if can('admin') %}<a href="{{ url_for('admin.index') }}" class="{{ 'on' if ep.startswith('admin.') }}" title="{{ _('Administration') }}">⚙</a>{% endif %}
     <span class="spacer"></span>
     <a href="{{ url_for('main.profile') }}" class="{{ 'on' if ep == 'main.profile' }}" title="{{ _('My profile') }}">👤 {{ g.user.full_name.split(' ')[0] }}</a>
-    <form method="post" action="{{ url_for('main.logout') }}" class="inline">
+    <form method="post" action="{{ url_for('main.logout') }}" class="inline" id="logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="linkbutton">{{ _('Log out') }}</button>
     </form>

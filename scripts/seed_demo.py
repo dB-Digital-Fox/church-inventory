@@ -211,6 +211,19 @@ def main():
         admin.post(f"/rosters/event/{concert_id}/add", {"role_id": str(role), "user_id": ids.get(who, "")})
     db.close()
 
+    # stocktaking from the phone app
+    import json as _json
+    for who, item, cond, loc, note in (("tomas", "Folding chairs", "damaged", "Parish hall", "Two chairs wobbly, set aside"),
+                                       ("jana", "Altar candles (large)", "good", "Storage", ""),
+                                       ("peter", "Mixing desk Yamaha MG10", "good", "Choir loft", "Channel 3 fine again")):
+        c = clients[who]
+        with c.c.session_transaction() as sess:
+            tok = sess["csrf"]
+        c.c.post("/m/sync", data=_json.dumps({"entries": [{
+            "uid": f"seed{item_ids[item]:08d}", "item_id": item_ids[item], "checked_at": f"{d(-2)}T18:30",
+            "condition": cond, "location": loc, "note": note}]}),
+            content_type="application/json", headers={"X-CSRF-Token": tok})
+
     # maintenance and inspections
     ext = item_ids["Fire extinguisher 6 kg"]
     tasks = [

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('Quick check') }}{% endblock %}
+{% block head %}
+<script src="{{ url_for('static', filename='vendor/jsQR.js') }}?v={{ asset_v }}" defer></script>
+<script src="{{ url_for('static', filename='mobile.js') }}?v={{ asset_v }}" defer></script>
+{% endblock %}
+{% block content %}
+<div id="quick" data-items="{{ url_for('mobile.items_json') }}" data-sync="{{ url_for('mobile.sync') }}" data-csrf="{{ csrf_token() }}" data-user="{{ g.user.id }}" data-readonly="{{ 1 if g.user.role == 'auditor' else 0 }}">
+<div class="head">
+  <h1>📱 {{ _('Quick check') }}</h1>
+  <div class="actions"><span id="netstatus" class="status s-approved">{{ _('online') }}</span></div>
+</div>
+<p class="muted">{{ _('Scan the QR label on an item or room, note where it is and its condition, and save. This works without internet too: checks wait on the phone and are sent when you are back online.') }}</p>
+
+<section class="card">
+  <div class="scanbar">
+    <button type="button" id="scan" class="primary big">📷 {{ _('Scan QR label') }}</button>
+    <form id="manual" class="inlineform">
+      <input name="id" inputmode="numeric" pattern="[0-9]*" placeholder="{{ _('or type the inventory number') }}" aria-label="{{ _('Inventory number') }}">
+      <button>{{ _('Find') }}</button>
+    </form>
+  </div>
+  <div id="camera" hidden>
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas" hidden></canvas>
+    <button type="button" id="stop">{{ _('Close camera') }}</button>
+  </div>
+  <p id="message" class="flash" hidden></p>
+</section>
+
+<form id="checkform" class="card" hidden>
+  <h2 id="itemname"></h2>
+  <p class="muted" id="iteminfo"></p>
+  <input type="hidden" name="item_id">
+  <div class="grid2">
+    <label>{{ _('Condition') }}<select name="condition">
+      {% for c in conditions %}<option value="{{ c }}">{{ _(c) }}</option>{% endfor %}
+    </select></label>
+    <label>{{ _('Location') }}<input name="location"></label>
+  </div>
+  <label>{{ _('Note') }}<textarea name="note" rows="2" placeholder="{{ _('e.g. cable missing, found in the attic') }}"></textarea></label>
+  <div class="actions">
+    <button class="primary big">✓ {{ _('Save check') }}</button>
+    <a class="button" id="itemlink" href="#">{{ _('Open item page') }}</a>
+  </div>
+</form>
+
+<section class="card">
+  <div class="head">
+    <h2>{{ _('Waiting to be sent') }} (<span id="queuecount">0</span>)</h2>
+    <div class="actions"><button type="button" id="syncnow">⟳ {{ _('Send now') }}</button></div>
+  </div>
+  <ul id="queue" class="plain"></ul>
+  <p id="queueempty" class="muted">{{ _('Nothing waiting. Everything is sent.') }}</p>
+</section>
+
+<section class="card">
+  <h2>{{ _('My recent checks') }}</h2>
+  {% for c in recent %}
+  <div class="listrow"><span class="date">{{ c.checked_at|local }}</span> <a href="{{ url_for('items.detail', item_id=c.item_id) }}">{{ c.item_name }}</a>{% if c.condition %} · {{ _(c.condition) }}{% endif %}{% if c.note %} <span class="muted">— {{ c.note }}</span>{% endif %}</div>
+  {% else %}<p class="muted">{{ _('No checks yet.') }}</p>{% endfor %}
+  <p class="muted small">{{ _('Tip: add this page to your home screen (browser menu → Add to Home screen / Install app) to use it like an app.') }}</p>
+</section>
+</div>
+<script type="application/json" id="t">{{ {
+  'online': _('online'), 'offline': _('offline – checks are kept on the phone'),
+  'notfound': _('Item #{id} is not in the list. Connect to the internet once to refresh it.'),
+  'saved': _('Saved. It will be sent automatically.'), 'sent': _('Checks sent: {n}.'),
+  'login': _('Your login expired. Log in again; your checks are kept.'),
+  'nocamera': _('The camera is not available. Type the inventory number instead.'),
+  'noqr': _('This is not a label from this inventory.'),
+  'readonly': _('Auditors can look but not record checks.'),
+  'error': _('Not sent: {msg}'),
+  'qty': _('Qty'), 'location': _('Location'), 'condition': _('Condition')
+}|tojson }}</script>
+{% endblock %}
