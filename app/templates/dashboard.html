@@ -6,7 +6,7 @@
   <h1>{{ _('Overview') }}</h1>
   <div class="actions">
     {% if can('event.create') %}<a class="button primary" href="{{ url_for('events.new') }}">+ {{ _('Log event') }}</a>{% endif %}
-    {% if can('reservation.create') %}<a class="button" href="{{ url_for('reservations.new') }}">+ {{ _('Reserve item') }}</a>{% endif %}
+    {% if can('reservation.create') %}<a class="button" href="{{ url_for('reservations.new') }}">+ {{ _('Reserve an item or room') }}</a>{% endif %}
     {% if can('item.edit') %}<a class="button" href="{{ url_for('items.new') }}">+ {{ _('Add item') }}</a>{% endif %}
   </div>
 </div>
@@ -27,6 +27,13 @@
 <section class="card attention">
   <h2>{{ _('Overdue returns') }}</h2>
   {{ m.reservation_table(overdue) }}
+</section>
+{% endif %}
+
+{% if maintenance_due %}
+<section class="card attention">
+  <h2>🔧 {{ _('Maintenance due in the next 14 days') }}</h2>
+  {{ m.task_table(maintenance_due) }}
 </section>
 {% endif %}
 

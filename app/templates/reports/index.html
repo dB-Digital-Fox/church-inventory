@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('Reports') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Reports') }}</h1>
+<div class="grid2">
+  <section class="card">
+    <h2>💶 {{ _('Assets and donations') }}</h2>
+    <p class="muted">{{ _('Value of everything the parish owns, depreciation for the year, and the list of donations received. For the diocese, the parish council or insurance.') }}</p>
+    <form method="get" action="{{ url_for('reports.assets') }}" class="inlineform">
+      <label>{{ _('Year') }} <input type="number" name="year" value="{{ year }}" min="1990" max="2100"></label>
+      <button class="primary">{{ _('Open report') }}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

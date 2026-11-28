@@ -54,6 +54,10 @@ const [base = 'http://127.0.0.1:8123', out = 'docs/screenshots'] = process.argv.
     await pg.locator('textarea[name=purpose]').fill('Film night for the youth group');
     await pg.locator('h1').click();
   } });
+  await shot('/items/?kind=space', 'rooms');
+  await shot('/maintenance/', 'maintenance', { full: true });
+  await p.goto(base + '/reports/');
+  await shot('/reports/assets', 'assets-report', { full: true });
   await shot('/audit/', 'audit-log');
   await shot('/people/', 'people');
   await p.goto(base + '/profile', { waitUntil: 'networkidle' });

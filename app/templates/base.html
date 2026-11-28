@@ -17,14 +17,18 @@
   <nav>
     {% set ep = request.endpoint or '' %}
     <a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if ep == 'main.dashboard' }}">{{ _('Overview') }}</a>
-    <a href="{{ url_for('items.index') }}" class="{{ 'on' if ep.startswith('items.') }}">{{ _('Inventory') }}</a>
+    {% set is_space = request.args.get('kind') == 'space' or (item is defined and item.kind == 'space') %}
+    <a href="{{ url_for('items.index') }}" class="{{ 'on' if ep.startswith('items.') and not is_space }}">{{ _('Inventory') }}</a>
+    <a href="{{ url_for('items.index', kind='space') }}" class="{{ 'on' if ep.startswith('items.') and is_space }}">{{ _('Rooms') }}</a>
     <a href="{{ url_for('events.index') }}" class="{{ 'on' if ep.startswith('events.') }}">{{ _('Events') }}</a>
     <a href="{{ url_for('reservations.index') }}" class="{{ 'on' if ep.startswith('reservations.') }}">{{ _('Reservations') }}</a>
+    <a href="{{ url_for('maintenance.index') }}" class="{{ 'on' if ep.startswith('maintenance.') }}">{{ _('Maintenance') }}</a>
     <a href="{{ url_for('users.index') }}" class="{{ 'on' if ep.startswith('users.') }}">{{ _('People') }}</a>
-    {% if can('audit.view') %}<a href="{{ url_for('audit.index') }}" class="{{ 'on' if ep.startswith('audit.') }}">{{ _('Audit log') }}</a>{% endif %}
-    {% if can('admin') %}<a href="{{ url_for('admin.index') }}" class="{{ 'on' if ep.startswith('admin.') }}">{{ _('Administration') }}</a>{% endif %}
+    {% if can('reports.view') %}<a href="{{ url_for('reports.index') }}" class="{{ 'on' if ep.startswith('reports.') }}">{{ _('Reports') }}</a>{% endif %}
+    {% if can('audit.view') %}<a href="{{ url_for('audit.index') }}" class="{{ 'on' if ep.startswith('audit.') }}">{{ _('Audit') }}</a>{% endif %}
+    {% if can('admin') %}<a href="{{ url_for('admin.index') }}" class="{{ 'on' if ep.startswith('admin.') }}" title="{{ _('Administration') }}">⚙</a>{% endif %}
     <span class="spacer"></span>
-    <a href="{{ url_for('main.profile') }}" class="{{ 'on' if ep == 'main.profile' }}">👤 {{ g.user.full_name }}</a>
+    <a href="{{ url_for('main.profile') }}" class="{{ 'on' if ep == 'main.profile' }}" title="{{ _('My profile') }}">👤 {{ g.user.full_name.split(' ')[0] }}</a>
     <form method="post" action="{{ url_for('main.logout') }}" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="linkbutton">{{ _('Log out') }}</button>

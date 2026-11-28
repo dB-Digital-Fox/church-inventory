@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>🔧 {{ task.title }}</h1>
+  <div class="actions">
+    {% if task.active and can('maintenance.log') %}<a class="button primary" href="{{ url_for('maintenance.log_new', task_id=task.id) }}">✓ {{ _('Record work done') }}</a>{% endif %}
+    {% if can('maintenance.manage') %}<a class="button" href="{{ url_for('maintenance.task_edit', task_id=task.id) }}">{{ _('Edit') }}</a>{% endif %}
+  </div>
+</div>
+<section class="card">
+  <dl class="props">
+    <dt>{{ _('Item or room') }}</dt><dd><a href="{{ url_for('items.detail', item_id=task.item_id) }}">{{ task.item_name }}</a></dd>
+    <dt>{{ _('Next due') }}</dt><dd>{{ task.next_due|local }} {{ m.due_badge(task) }}</dd>
+    <dt>{{ _('Repeat') }}</dt><dd>{{ _('every {n} days', n=task.interval_days) if task.interval_days else _('once') }}</dd>
+    <dt>{{ _('Responsible person') }}</dt><dd>{{ task.responsible_name or '—' }}</dd>
+    <dt>{{ _('Company / technician') }}</dt><dd>{{ task.contractor or '—' }}</dd>
+  </dl>
+  {% if task.notes %}<div class="writeup">{{ task.notes }}</div>{% endif %}
+  {{ m.meta(task) }}
+</section>
+<section class="card">
+  <h2>{{ _('Maintenance history') }}</h2>
+  {% if log %}{{ m.log_table(log, show_item=False) }}{% else %}<p class="muted">{{ _('Nothing recorded yet.') }}</p>{% endif %}
+</section>
+<section class="card">{{ m.history_list(history) }}</section>
+{% endblock %}

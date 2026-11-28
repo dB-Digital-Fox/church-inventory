@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Record work done') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Edit') if editing else _('Record work done') }}{% if task %}: {{ task.title }}{% endif %}</h1>
+<form method="post" enctype="multipart/form-data" class="card">
+  {{ m.csrf() }}
+  {% if task and not editing %}<input type="hidden" name="task_id" value="{{ task.id }}">
+    <p class="muted">{{ task.item_name }}{% if task.interval_days %} · {{ _('The next date is set automatically: {n} days after this one.', n=task.interval_days) }}{% endif %}</p>
+  {% endif %}
+  <div class="grid2">
+    {% if not task and not editing %}
+    <label>{{ _('Item or room') }} *<select name="item_id" required>
+      <option value="">—</option>
+      {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if (form.item_id|string) == (i.id|string) }}>{{ '🏛 ' if i.kind == 'space' }}{{ i.name }}</option>{% endfor %}
+    </select></label>
+    {% endif %}
+    <label>{{ _('Date') }} *<input type="date" name="done_on" required value="{{ form.done_on or '' }}"></label>
+    <label>{{ _('Done by') }}<input name="performed_by" value="{{ form.performed_by or '' }}"></label>
+    <label>{{ _('Result') }}<select name="result">{% for r in results %}<option value="{{ r }}" {{ 'selected' if form.result == r }}>{{ _(r) }}</option>{% endfor %}</select></label>
+    <label>{{ _('Cost') }}<input name="cost" value="{{ form.cost or '' }}" placeholder="€"></label>
+  </div>
+  <label>{{ _('What was done / found') }}<textarea name="notes" rows="4">{{ form.notes or '' }}</textarea></label>
+  <label>{{ _('Photos or scanned report / certificate') }}<input type="file" name="photos" accept="image/*" multiple></label>
+  <div class="actions">
+    <button class="primary">{{ _('Save') }}</button>
+    <a class="button" href="{{ url_for('maintenance.log_detail', log_id=form.id) if editing else url_for('maintenance.index') }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

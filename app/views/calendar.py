@@ -101,7 +101,8 @@ def feed(token):
             lines.append(f"LOCATION:{esc(e['location'])}")
         lines.append("END:VEVENT")
 
-    res_sql = ("SELECT r.*, i.name AS item_name, i.location AS item_location, u.full_name"
+    res_sql = ("SELECT r.*, i.name AS item_name, i.location AS item_location, i.kind AS item_kind,"
+               " u.full_name"
                " FROM reservations r JOIN items i ON i.id = r.item_id JOIN users u ON u.id = r.user_id"
                " WHERE r.status IN ('pending','approved','checked_out','returned') AND r.end_at >= ?")
     params = [since]
@@ -110,7 +111,10 @@ def feed(token):
         params.append(user["id"])
     for r in db.execute(res_sql, params).fetchall():
         status = tr(r["status"], lang)
-        title = f"📦 {r['item_name']} ×{r['quantity']} — {r['full_name']}"
+        if r["item_kind"] == "space":
+            title = f"🏛 {r['item_name']} — {r['full_name']}"
+        else:
+            title = f"📦 {r['item_name']} ×{r['quantity']} — {r['full_name']}"
         if r["status"] == "pending":
             title += f" ({status})"
         desc = [f"{tr('Status', lang)}: {status}"]

@@ -1,36 +1,43 @@
 {% extends 'base.html' %}
 {% import 'macros.html' as m with context %}
-{% block title %}{{ _('Inventory') }}{% endblock %}
+{% set spaces = kind == 'space' %}
+{% block title %}{{ _('Rooms and spaces') if spaces else _('Inventory') }}{% endblock %}
 {% block content %}
 <div class="head">
-  <h1>{{ _('Inventory') }}</h1>
+  <h1>{{ _('Rooms and spaces') if spaces else _('Inventory') }}</h1>
   <div class="actions">
-    {% if can('item.edit') %}<a class="button primary" href="{{ url_for('items.new') }}">+ {{ _('Add item') }}</a>{% endif %}
+    {% if can('item.edit') %}<a class="button primary" href="{{ url_for('items.new', kind=kind) }}">+ {{ _('Add space') if spaces else _('Add item') }}</a>{% endif %}
+    {% if spaces and can('reservation.create') %}<a class="button" href="{{ url_for('reservations.new') }}">{{ _('Book a room') }}</a>{% endif %}
     <a class="button" href="{{ url_for('items.export_csv', **args) }}">CSV</a>
   </div>
 </div>
+{% if spaces %}<p class="muted">{{ _('Rooms are booked like items: the booking shows in everyone’s calendar, and two bookings at the same time are flagged as a clash.') }}</p>{% endif %}
 <form class="filters" method="get">
+  <input type="hidden" name="kind" value="{{ kind }}">
   <input name="q" value="{{ args.q }}" placeholder="{{ _('Search') }}…">
+  {% if not spaces %}
   <select name="category"><option value="">{{ _('All categories') }}</option>{% for c in cats %}<option {{ 'selected' if args.category == c }}>{{ c }}</option>{% endfor %}</select>
   <select name="location"><option value="">{{ _('All locations') }}</option>{% for c in locs %}<option {{ 'selected' if args.location == c }}>{{ c }}</option>{% endfor %}</select>
+  <select name="acquisition"><option value="">{{ _('Any origin') }}</option>{% for a in acquisitions %}<option value="{{ a }}" {{ 'selected' if args.acquisition == a }}>{{ _(a) }}</option>{% endfor %}</select>
+  {% endif %}
   <select name="condition"><option value="">{{ _('Any condition') }}</option>{% for c in conditions %}<option value="{{ c }}" {{ 'selected' if args.condition == c }}>{{ _(c) }}</option>{% endfor %}</select>
   <label class="check"><input type="checkbox" name="archived" value="1" {{ 'checked' if args.archived }}> {{ _('Show archived') }}</label>
   <button>{{ _('Filter') }}</button>
 </form>
 <form method="get" action="{{ url_for('items.labels') }}">
 <div class="tablewrap"><table>
-  <thead><tr><th><input type="checkbox" class="selectall" title="{{ _('Select all') }}"></th><th></th><th>{{ _('Name') }}</th><th>{{ _('Category') }}</th><th>{{ _('Location') }}</th><th>{{ _('Qty') }}</th><th>{{ _('Condition') }}</th></tr></thead>
+  <thead><tr><th><input type="checkbox" class="selectall" title="{{ _('Select all') }}"></th><th></th><th>{{ _('Name') }}</th>{% if not spaces %}<th>{{ _('Category') }}</th>{% endif %}<th>{{ _('Location') }}</th>{% if not spaces %}<th>{{ _('Qty') }}</th>{% endif %}<th>{{ _('Condition') }}</th></tr></thead>
   <tbody>
   {% for r in rows %}
     <tr class="{{ 'archived' if r.archived }}">
       <td><input type="checkbox" name="id" value="{{ r.id }}"></td>
       <td class="thumbcell">{% if thumbs.get(r.id) %}<img src="{{ url_for('main.upload', name='thumbs/' ~ thumbs[r.id]) }}" alt="" loading="lazy">{% endif %}</td>
-      <td><a href="{{ url_for('items.detail', item_id=r.id) }}">{{ r.name }}</a>{% if r.archived %} <span class="status s-cancelled">{{ _('archived') }}</span>{% endif %}<br><small class="muted">#{{ r.id }}{% if r.serial_number %} · {{ r.serial_number }}{% endif %}</small></td>
-      <td>{{ r.category }}</td><td>{{ r.location }}</td><td>{{ r.quantity }}</td>
+      <td><a href="{{ url_for('items.detail', item_id=r.id) }}">{{ r.name }}</a>{% if r.archived %} <span class="status s-cancelled">{{ _('archived') }}</span>{% endif %}{% if r.acquisition == 'donation' %} <span class="status s-gift" title="{{ _('Donated by') }} {{ r.donor }}">🎁 {{ _('donation') }}</span>{% endif %}<br><small class="muted">#{{ r.id }}{% if r.serial_number %} · {{ r.serial_number }}{% endif %}</small></td>
+      {% if not spaces %}<td>{{ r.category }}</td>{% endif %}<td>{{ r.location }}</td>{% if not spaces %}<td>{{ r.quantity }}</td>{% endif %}
       <td><span class="cond c-{{ r.condition }}">{{ _(r.condition) }}</span></td>
     </tr>
   {% else %}
-    <tr><td colspan="7" class="muted">{{ _('No items found.') }}</td></tr>
+    <tr><td colspan="7" class="muted">{{ _('No spaces yet. Add the hall, the church or the kitchen to make them bookable.') if spaces else _('No items found.') }}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Schedule maintenance') }}{% endblock %}
+{% block content %}
+<h1>{{ _('Edit maintenance task') if editing else _('Schedule maintenance') }}</h1>
+<form method="post" class="card">
+  {{ m.csrf() }}
+  <div class="grid2">
+    <label>{{ _('What needs doing') }} *<input name="title" required value="{{ task.title or '' }}" placeholder="{{ _('e.g. Fire extinguisher inspection') }}"></label>
+    <label>{{ _('Item or room') }} *<select name="item_id" required>
+      <option value="">—</option>
+      {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if (task.item_id|string) == (i.id|string) }}>{{ '🏛 ' if i.kind == 'space' }}{{ i.name }}</option>{% endfor %}
+    </select></label>
+    <label>{{ _('Next due') }} *<input type="date" name="next_due" required value="{{ task.next_due or '' }}"></label>
+    <label>{{ _('Repeat every (days, 0 = once)') }}<input type="number" name="interval_days" min="0" list="intervals" value="{{ task.interval_days if task.interval_days is not none else 365 }}"></label>
+    <label>{{ _('Responsible person') }}<select name="responsible_id">
+      <option value="">—</option>
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if (task.responsible_id|string) == (u.id|string) }}>{{ u.full_name }}</option>{% endfor %}
+    </select></label>
+    <label>{{ _('Company / technician') }}<input name="contractor" value="{{ task.contractor or '' }}"></label>
+  </div>
+  <datalist id="intervals"><option value="30"><option value="90"><option value="180"><option value="365"><option value="730"><option value="1825"></datalist>
+  <label>{{ _('Notes') }}<textarea name="notes" rows="3">{{ task.notes or '' }}</textarea></label>
+  {% if editing %}<label class="check"><input type="checkbox" name="active" value="1" {{ 'checked' if task.active and task.active != '0' }}> {{ _('Active') }}</label>{% endif %}
+  <div class="actions">
+    <button class="primary">{{ _('Save') }}</button>
+    <a class="button" href="{{ url_for('maintenance.task_detail', task_id=task.id) if editing else url_for('maintenance.index') }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

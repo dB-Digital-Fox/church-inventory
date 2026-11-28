@@ -1,28 +1,44 @@
 {% extends 'base.html' %}
 {% import 'macros.html' as m with context %}
-{% block title %}{{ _('Edit item') if editing else _('Add item') }}{% endblock %}
+{% set spaces = item.kind == 'space' %}
+{% block title %}{{ _('Edit') if editing else (_('Add space') if spaces else _('Add item')) }}{% endblock %}
 {% block content %}
-<h1>{{ _('Edit item') if editing else _('Add item') }}</h1>
+<h1>{{ (_('Edit') ~ ': ' ~ item.name) if editing else (_('Add space') if spaces else _('Add item')) }}</h1>
 <form method="post" enctype="multipart/form-data" class="card">
   {{ m.csrf() }}
   <div class="grid2">
-    <label>{{ _('Name') }} *<input name="name" required value="{{ item.name or '' }}"></label>
+    <label>{{ _('Name') }} *<input name="name" required value="{{ item.name or '' }}" placeholder="{{ _('e.g. Parish hall, Kitchen') if spaces else '' }}"></label>
+    <label>{{ _('Type of record') }}<select name="kind">
+      <option value="item" {{ 'selected' if not spaces }}>{{ _('Item') }}</option>
+      <option value="space" {{ 'selected' if spaces }}>{{ _('Room / space') }}</option>
+    </select></label>
     <label>{{ _('Quantity') }} *<input name="quantity" type="number" min="0" required value="{{ item.quantity if item.quantity is not none else 1 }}"></label>
     <label>{{ _('Category') }}<input name="category" list="cats" value="{{ item.category or '' }}" placeholder="{{ _('e.g. Audio, Liturgy, Furniture') }}"></label>
     <label>{{ _('Location') }}<input name="location" list="locs" value="{{ item.location or '' }}" placeholder="{{ _('e.g. Sacristy, Hall, Storage') }}"></label>
     <label>{{ _('Serial number') }}<input name="serial_number" value="{{ item.serial_number or '' }}"></label>
     <label>{{ _('Condition') }}<select name="condition">{% for c in conditions %}<option value="{{ c }}" {{ 'selected' if item.condition == c }}>{{ _(c) }}</option>{% endfor %}</select></label>
-    <label>{{ _('Purchase date') }}<input name="purchase_date" type="date" value="{{ item.purchase_date or '' }}"></label>
-    <label>{{ _('Purchase value') }}<input name="purchase_value" value="{{ item.purchase_value or '' }}" placeholder="€"></label>
   </div>
   <label>{{ _('Description / notes') }}<textarea name="description" rows="4">{{ item.description or '' }}</textarea></label>
   <label class="check"><input type="checkbox" name="reservable" {{ 'checked' if item.reservable }}> {{ _('Can be reserved / borrowed') }}</label>
+
+  <fieldset>
+    <legend>{{ _('Origin and value') }}</legend>
+    <div class="grid2">
+      <label>{{ _('How it was acquired') }}<select name="acquisition">{% for a in acquisitions %}<option value="{{ a }}" {{ 'selected' if item.acquisition == a }}>{{ _(a) }}</option>{% endfor %}</select></label>
+      <label>{{ _('Donor (if donated)') }}<input name="donor" value="{{ item.donor or '' }}" placeholder="{{ _('e.g. Novák family, in memory of…') }}"></label>
+      <label>{{ _('Acquired on') }}<input name="purchase_date" type="date" value="{{ item.purchase_date or '' }}"></label>
+      <label>{{ _('Value of one piece (€)') }}<input name="unit_value" inputmode="decimal" value="{{ item.unit_value if item.unit_value is not none else '' }}" placeholder="0,00"></label>
+      <label>{{ _('Useful life (years, 0 = not depreciated)') }}<input name="useful_life_years" type="number" min="0" value="{{ item.useful_life_years or 0 }}"></label>
+      <label>{{ _('Price note / invoice') }}<input name="purchase_value" value="{{ item.purchase_value or '' }}" placeholder="{{ _('e.g. invoice 2026/114') }}"></label>
+    </div>
+  </fieldset>
+
   <label>{{ _('Photos') }}<input type="file" name="photos" accept="image/*" multiple></label>
   <datalist id="cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
   <datalist id="locs">{% for c in locs %}<option value="{{ c }}">{% endfor %}</datalist>
   <div class="actions">
     <button class="primary">{{ _('Save') }}</button>
-    <a class="button" href="{{ url_for('items.detail', item_id=item_id) if editing else url_for('items.index') }}">{{ _('Cancel') }}</a>
+    <a class="button" href="{{ url_for('items.detail', item_id=item_id) if editing else url_for('items.index', kind=item.kind) }}">{{ _('Cancel') }}</a>
   </div>
 </form>
 {% endblock %}

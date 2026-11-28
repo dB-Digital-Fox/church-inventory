@@ -19,9 +19,14 @@
       <dt>{{ _('Quantity') }}</dt><dd>{{ item.quantity }}</dd>
       <dt>{{ _('Condition') }}</dt><dd><span class="cond c-{{ item.condition }}">{{ _(item.condition) }}</span></dd>
       <dt>{{ _('Serial number') }}</dt><dd>{{ item.serial_number or '—' }}</dd>
-      <dt>{{ _('Purchase date') }}</dt><dd>{{ item.purchase_date|local or '—' }}</dd>
-      <dt>{{ _('Purchase value') }}</dt><dd>{{ item.purchase_value or '—' }}</dd>
       <dt>{{ _('Can be reserved / borrowed') }}</dt><dd>{{ _('yes') if item.reservable else _('no') }}</dd>
+      <dt>{{ _('How it was acquired') }}</dt><dd>{{ _(item.acquisition) }}{% if item.donor %} — 🎁 {{ item.donor }}{% endif %}</dd>
+      <dt>{{ _('Acquired on') }}</dt><dd>{{ item.purchase_date|local or '—' }}</dd>
+      {% if item.unit_value is not none %}
+      <dt>{{ _('Value') }}</dt><dd>{{ total_value|money }}{% if item.quantity != 1 %} <span class="muted">({{ item.quantity }} × {{ item.unit_value|money }})</span>{% endif %}</dd>
+      {% if item.useful_life_years %}<dt>{{ _('Book value today') }}</dt><dd>{{ book_value|money }} <span class="muted">({{ _('depreciated over {n} years', n=item.useful_life_years) }})</span></dd>{% endif %}
+      {% endif %}
+      {% if item.purchase_value %}<dt>{{ _('Price note / invoice') }}</dt><dd>{{ item.purchase_value }}</dd>{% endif %}
     </dl>
     {% if item.description %}<div class="writeup">{{ item.description }}</div>{% endif %}
     {{ m.meta(item) }}
@@ -38,6 +43,19 @@
   <form method="post" action="{{ url_for('items.add_photos', item_id=item.id) }}" enctype="multipart/form-data" class="inlineform">
     {{ m.csrf() }}<input type="file" name="photos" accept="image/*" multiple required><button>{{ _('Upload') }}</button>
   </form>
+  {% endif %}
+</section>
+<section class="card">
+  <div class="head">
+    <h2>🔧 {{ _('Maintenance and inspections') }}</h2>
+    <div class="actions">
+      {% if can('maintenance.manage') %}<a class="button" href="{{ url_for('maintenance.task_new', item_id=item.id) }}">+ {{ _('Schedule') }}</a>{% endif %}
+      {% if can('maintenance.log') %}<a class="button" href="{{ url_for('maintenance.log_new', item_id=item.id) }}">+ {{ _('Record work done') }}</a>{% endif %}
+    </div>
+  </div>
+  {{ m.task_table(tasks, show_item=False) }}
+  {% if mlog %}
+  <details><summary>{{ _('Maintenance history') }} ({{ mlog|length }})</summary>{{ m.log_table(mlog, show_item=False) }}</details>
   {% endif %}
 </section>
 <section class="card">

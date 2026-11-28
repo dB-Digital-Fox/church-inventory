@@ -80,3 +80,47 @@
 </div>
 {% endif %}
 {% endmacro %}
+
+{% macro due_badge(t) -%}
+  {%- if t.due_state == 'overdue' %}<span class="status s-overdue">{{ _('overdue by {n} days', n=-t.days_left) }}</span>
+  {%- elif t.due_state == 'soon' %}<span class="status s-pending">{{ _('today') if t.days_left == 0 else _('in {n} days', n=t.days_left) }}</span>
+  {%- elif t.due_state == 'inactive' %}<span class="status s-cancelled">{{ _('inactive') }}</span>
+  {%- else %}<span class="status s-approved">{{ _('in {n} days', n=t.days_left) }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro task_table(tasks, show_item=True) %}
+{% if tasks %}
+<div class="tablewrap"><table>
+  <thead><tr><th>{{ _('Task') }}</th>{% if show_item %}<th>{{ _('Item') }}</th>{% endif %}<th>{{ _('Repeat') }}</th><th>{{ _('Next due') }}</th><th>{{ _('Responsible') }}</th><th></th></tr></thead>
+  <tbody>
+  {% for t in tasks %}
+  <tr class="{{ 'row-clash' if t.due_state == 'overdue' }}{{ ' archived' if not t.active }}">
+    <td><a href="{{ url_for('maintenance.task_detail', task_id=t.id) }}">{{ t.title }}</a></td>
+    {% if show_item %}<td><a href="{{ url_for('items.detail', item_id=t.item_id) }}">{{ t.item_name }}</a></td>{% endif %}
+    <td>{{ _('every {n} days', n=t.interval_days) if t.interval_days else _('once') }}</td>
+    <td class="nowrap">{{ t.next_due|local }}<br>{{ due_badge(t) }}</td>
+    <td>{{ t.responsible_name or t.contractor or '—' }}</td>
+    <td>{% if t.active and can('maintenance.log') %}<a class="button" href="{{ url_for('maintenance.log_new', task_id=t.id) }}">✓ {{ _('Done') }}</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="muted">{{ _('No maintenance scheduled.') }}</p>{% endif %}
+{% endmacro %}
+
+{% macro log_table(log, show_item=True) %}
+<div class="tablewrap"><table>
+  <thead><tr><th>{{ _('Date') }}</th>{% if show_item %}<th>{{ _('Item') }}</th>{% endif %}<th>{{ _('Task') }}</th><th>{{ _('Done by') }}</th><th>{{ _('Result') }}</th></tr></thead>
+  <tbody>
+  {% for l in log %}
+  <tr>
+    <td class="nowrap"><a href="{{ url_for('maintenance.log_detail', log_id=l.id) }}">{{ l.done_on|local }}</a></td>
+    {% if show_item %}<td><a href="{{ url_for('items.detail', item_id=l.item_id) }}">{{ l.item_name }}</a></td>{% endif %}
+    <td>{{ l.task_title or '—' }}</td>
+    <td>{{ l.performed_by }}</td>
+    <td><span class="status r-{{ l.result }}">{{ _(l.result) }}</span></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}

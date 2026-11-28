@@ -19,6 +19,9 @@ PERMISSIONS = {
     "reservation.create": {"admin", "manager", "member"},
     "reservation.manage": {"admin", "manager"},
     "audit.view": {"admin", "manager", "auditor"},
+    "maintenance.manage": {"admin", "manager"},
+    "maintenance.log": {"admin", "manager", "member"},
+    "reports.view": {"admin", "manager", "auditor"},
     "admin": {"admin"},
 }
 

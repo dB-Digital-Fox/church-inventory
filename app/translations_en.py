@@ -32,4 +32,13 @@ EN = {
     "name_sk": "name (SK)",
     "name_en": "name (EN)",
     "sha256": "SHA-256",
+    "maintenance_task": "maintenance plan",
+    "unit_value": "value per piece",
+    "useful_life_years": "useful life (years)",
+    "interval_days": "repeat (days)",
+    "next_due": "next due",
+    "responsible_id": "responsible person",
+    "done_on": "date",
+    "performed_by": "done by",
+    "task_id": "task",
 }

@@ -9,13 +9,16 @@ from .. import audit
 from ..auth import can, login_required, require
 from ..db import get_db, transaction
 from ..i18n import _
+from ..assets import ACQUISITIONS, book_value, parse_money, total_value
 from ..utils import parse_date, photos_for, store_photos, to_int
 from .reservations import BASE_SQL as RES_SQL, CONDITIONS, annotate_clashes
 
 bp = Blueprint("items", __name__, url_prefix="/items")
 
 FIELDS = ("name", "category", "location", "quantity", "serial_number", "purchase_date",
-          "purchase_value", "condition", "description", "reservable")
+          "purchase_value", "condition", "description", "reservable", "kind", "acquisition",
+          "donor", "unit_value", "useful_life_years")
+KINDS = ("item", "space")
 
 
 def load(db, item_id):
@@ -45,8 +48,23 @@ def parse_form(form):
         "condition": form.get("condition", "good"),
         "description": form.get("description", "").strip(),
         "reservable": 1 if form.get("reservable") else 0,
+        "kind": form.get("kind") if form.get("kind") in KINDS else "item",
+        "acquisition": form.get("acquisition") if form.get("acquisition") in ACQUISITIONS
+        else "purchase",
+        "donor": form.get("donor", "").strip(),
+        "useful_life_years": to_int(form.get("useful_life_years") or 0, None, minimum=0),
     }
     errors = []
+    try:
+        data["unit_value"] = parse_money(form.get("unit_value"))
+    except ValueError:
+        data["unit_value"] = None
+        errors.append(_("Value must be a number, e.g. 120 or 120,50."))
+    if data["useful_life_years"] is None:
+        data["useful_life_years"] = 0
+        errors.append(_("Useful life must be a whole number of years."))
+    if data["acquisition"] != "donation":
+        data["donor"] = ""
     if not data["name"]:
         errors.append(_("Name is required."))
     if data["quantity"] is None:
@@ -71,6 +89,13 @@ def query_items(db, args):
         if args.get(field):
             where.append(f"{field} = ?")
             params.append(args[field])
+    kind = args.get("kind", "item")
+    if kind in KINDS:
+        where.append("kind = ?")
+        params.append(kind)
+    if args.get("acquisition") in ACQUISITIONS:
+        where.append("acquisition = ?")
+        params.append(args["acquisition"])
     sql = "SELECT * FROM items" + (" WHERE " + " AND ".join(where) if where else "")
     return db.execute(sql + " ORDER BY name COLLATE NOCASE", params).fetchall()
 
@@ -84,8 +109,10 @@ def index():
         "SELECT entity_id, MIN(id), filename FROM photos WHERE entity = 'item' AND hidden = 0"
         " GROUP BY entity_id")}
     cats, locs = suggestions(db)
+    kind = request.args.get("kind", "item")
     return render_template("items/index.html", rows=rows, thumbs=thumbs, cats=cats, locs=locs,
-                           conditions=CONDITIONS, args=request.args)
+                           conditions=CONDITIONS, args=request.args, kind=kind,
+                           acquisitions=ACQUISITIONS)
 
 
 @bp.route("/export.csv")
@@ -113,12 +140,11 @@ def new():
         else:
             now = audit.utcnow()
             with transaction(db):
+                cols = ", ".join(FIELDS)
+                vals = ", ".join(f":{f}" for f in FIELDS)
                 cur = db.execute(
-                    "INSERT INTO items (name, category, location, quantity, serial_number,"
-                    " purchase_date, purchase_value, condition, description, reservable,"
-                    " created_at, created_by, updated_at, updated_by) VALUES (:name, :category,"
-                    " :location, :quantity, :serial_number, :purchase_date, :purchase_value,"
-                    " :condition, :description, :reservable, :now, :uid, :now, :uid)",
+                    f"INSERT INTO items ({cols}, created_at, created_by, updated_at, updated_by)"
+                    f" VALUES ({vals}, :now, :uid, :now, :uid)",
                     dict(data, now=now, uid=g.user["id"]))
                 item_id = cur.lastrowid
                 audit.record(db, "create", "item", item_id, summary=data["name"], after=data)
@@ -126,11 +152,13 @@ def new():
                                                 request.files.getlist("photos"), g.user)
             for name in rejected:
                 flash(_("{name} is not a supported image and was skipped.", name=name), "warning")
-            flash(_("Item added."), "success")
+            flash(_("Space added.") if data["kind"] == "space" else _("Item added."), "success")
             return redirect(url_for("items.detail", item_id=item_id))
     cats, locs = suggestions(db)
-    return render_template("items/form.html", item=request.form or {"quantity": 1, "reservable": 1},
-                           cats=cats, locs=locs, conditions=CONDITIONS, editing=False)
+    kind = request.args.get("kind") if request.args.get("kind") in KINDS else "item"
+    defaults = {"quantity": 1, "reservable": 1, "kind": kind, "acquisition": "purchase"}
+    return render_template("items/form.html", item=request.form or defaults, cats=cats, locs=locs,
+                           conditions=CONDITIONS, editing=False, acquisitions=ACQUISITIONS)
 
 
 @bp.route("/<int:item_id>")
@@ -143,9 +171,12 @@ def detail(item_id):
         " ORDER BY r.start_at", (item_id,)).fetchall())
     past = db.execute(RES_SQL + "WHERE r.item_id = ? AND r.status IN ('returned')"
                       " ORDER BY r.start_at DESC LIMIT 20", (item_id,)).fetchall()
+    from .maintenance import item_tasks, item_log
     return render_template("items/detail.html", item=item, photos=photos_for(db, "item", item_id),
                            reservations=reservations, past=past,
-                           history=audit.history(db, "item", item_id))
+                           history=audit.history(db, "item", item_id),
+                           tasks=item_tasks(db, item_id), mlog=item_log(db, item_id),
+                           total_value=total_value(item), book_value=book_value(item))
 
 
 @bp.route("/<int:item_id>/edit", methods=["GET", "POST"])
@@ -161,12 +192,9 @@ def edit(item_id):
         else:
             before = {k: item[k] for k in FIELDS}
             with transaction(db):
-                db.execute(
-                    "UPDATE items SET name=:name, category=:category, location=:location,"
-                    " quantity=:quantity, serial_number=:serial_number, purchase_date=:purchase_date,"
-                    " purchase_value=:purchase_value, condition=:condition, description=:description,"
-                    " reservable=:reservable, updated_at=:now, updated_by=:uid WHERE id=:id",
-                    dict(data, now=audit.utcnow(), uid=g.user["id"], id=item_id))
+                sets = ", ".join(f"{f}=:{f}" for f in FIELDS)
+                db.execute(f"UPDATE items SET {sets}, updated_at=:now, updated_by=:uid WHERE id=:id",
+                           dict(data, now=audit.utcnow(), uid=g.user["id"], id=item_id))
                 if audit.diff(before, data):
                     audit.record(db, "update", "item", item_id, summary=data["name"],
                                  before=before, after=data)
@@ -178,7 +206,8 @@ def edit(item_id):
             return redirect(url_for("items.detail", item_id=item_id))
     cats, locs = suggestions(db)
     return render_template("items/form.html", item=request.form if request.method == "POST" else item,
-                           cats=cats, locs=locs, conditions=CONDITIONS, editing=True, item_id=item_id)
+                           cats=cats, locs=locs, conditions=CONDITIONS, editing=True, item_id=item_id,
+                           acquisitions=ACQUISITIONS)
 
 
 @bp.route("/<int:item_id>/archive", methods=["POST"])
@@ -225,6 +254,10 @@ def hide_photo(photo_id):
         if not can("item.edit"):
             abort(403)
         target = url_for("items.detail", item_id=photo["entity_id"])
+    elif photo["entity"] == "maintenance":
+        if not can("maintenance.manage"):
+            abort(403)
+        target = url_for("maintenance.log_detail", log_id=photo["entity_id"])
     else:
         event = db.execute("SELECT * FROM events WHERE id = ?", (photo["entity_id"],)).fetchone()
         if not can_edit_event(event):

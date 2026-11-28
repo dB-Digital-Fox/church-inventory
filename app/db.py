@@ -57,6 +57,7 @@ def init_db(path):
         conn.execute("PRAGMA journal_mode = WAL")
         with open(os.path.join(os.path.dirname(__file__), "schema.sql"), encoding="utf-8") as f:
             conn.executescript(f.read())
+        migrate(conn)
         if conn.execute("SELECT COUNT(*) FROM event_types").fetchone()[0] == 0:
             conn.executemany(
                 "INSERT INTO event_types (name_sk, name_en, color) VALUES (?, ?, ?)",
@@ -77,3 +78,49 @@ def set_state(db, key, value):
         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (key, str(value)),
     )
+
+
+ITEM_COLUMNS = {
+    "kind": "TEXT NOT NULL DEFAULT 'item'",
+    "acquisition": "TEXT NOT NULL DEFAULT 'purchase'",
+    "donor": "TEXT NOT NULL DEFAULT ''",
+    "unit_value": "REAL",
+    "useful_life_years": "INTEGER NOT NULL DEFAULT 0",
+}
+
+
+def _columns(conn, table):
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def migrate(conn):
+    """Bring databases created by older versions up to the current schema."""
+    have = _columns(conn, "items")
+    for name, ddl in ITEM_COLUMNS.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE items ADD COLUMN {name} {ddl}")
+    if "unit_value" not in have:
+        # Older versions kept the value as free text; carry over plain numbers like "489 €".
+        for row in conn.execute("SELECT id, purchase_value FROM items").fetchall():
+            text = (row[1] or "").replace("€", "").replace(" ", "").replace(",", ".")
+            try:
+                conn.execute("UPDATE items SET unit_value = ? WHERE id = ?", (float(text), row[0]))
+            except ValueError:
+                pass
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'photos'").fetchone()[0]
+    if "CHECK (entity IN" in sql:
+        # Allow photos on more kinds of records (maintenance reports). SQLite can't drop a CHECK,
+        # so the table is copied; ids, files and hashes stay the same.
+        conn.executescript("""
+            BEGIN;
+            ALTER TABLE photos RENAME TO photos_old;
+            CREATE TABLE photos (
+                id INTEGER PRIMARY KEY, entity TEXT NOT NULL, entity_id INTEGER NOT NULL,
+                filename TEXT NOT NULL, original_name TEXT NOT NULL DEFAULT '', sha256 TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0, uploaded_at TEXT NOT NULL,
+                uploaded_by INTEGER REFERENCES users(id));
+            INSERT INTO photos SELECT * FROM photos_old;
+            DROP TABLE photos_old;
+            CREATE INDEX IF NOT EXISTS photos_entity ON photos(entity, entity_id);
+            COMMIT;
+        """)

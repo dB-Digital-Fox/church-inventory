@@ -93,31 +93,42 @@ def main():
         c.post("/profile", {"action": "password", "current": temp, "password": PW, "password2": PW})
         clients[username] = c
 
+    # name, qty, category, location, photo, serial, acquired, unit value, life (years), donor
     items = [
-        ("Projector Epson EB-X51", 1, "Audio & video", "Sacristy", "screen", ((40, 60, 110), (20, 25, 50)), "X5QK123456", "2023-03-14", "489 €"),
-        ("Wireless microphone Shure", 4, "Audio & video", "Choir loft", "mic", ((200, 200, 210), (120, 120, 140)), "SH-BLX24", "2022-11-02", "4 × 259 €"),
-        ("Folding chairs", 60, "Furniture", "Parish hall", "chairs", ((235, 225, 205), (200, 185, 160)), "", "2019-05-20", "60 × 18 €"),
-        ("Processional cross", 1, "Liturgy", "Sacristy", "cross", ((110, 30, 50), (60, 10, 25)), "", "", ""),
-        ("Altar candles (large)", 24, "Liturgy", "Storage", "candles", ((60, 40, 70), (20, 10, 30)), "", "2026-10-01", "24 × 6 €"),
-        ("Mixing desk Yamaha MG10", 1, "Audio & video", "Choir loft", "screen", ((50, 50, 55), (15, 15, 20)), "YMG10-88812", "2021-09-09", "199 €"),
-        ("Extension cords 25 m", 6, "Technical", "Storage", None, None, "", "", ""),
-        ("Christmas nativity set", 1, "Decorations", "Attic", None, None, "", "2015-12-01", ""),
+        ("Projector Epson EB-X51", 1, "Audio & video", "Sacristy", "screen", ((40, 60, 110), (20, 25, 50)), "X5QK123456", "2023-03-14", "489", "5", ""),
+        ("Wireless microphone Shure", 4, "Audio & video", "Choir loft", "mic", ((200, 200, 210), (120, 120, 140)), "SH-BLX24", "2022-11-02", "259", "6", ""),
+        ("Folding chairs", 60, "Furniture", "Parish hall", "chairs", ((235, 225, 205), (200, 185, 160)), "", "2019-05-20", "18", "10", ""),
+        ("Processional cross", 1, "Liturgy", "Sacristy", "cross", ((110, 30, 50), (60, 10, 25)), "", "1998-04-12", "1500", "", "Horváth family"),
+        ("Altar candles (large)", 24, "Liturgy", "Storage", "candles", ((60, 40, 70), (20, 10, 30)), "", "2026-10-01", "6", "", ""),
+        ("Mixing desk Yamaha MG10", 1, "Audio & video", "Choir loft", "screen", ((50, 50, 55), (15, 15, 20)), "YMG10-88812", "2021-09-09", "199", "5", ""),
+        ("Extension cords 25 m", 6, "Technical", "Storage", None, None, "", "", "", "", ""),
+        ("Christmas nativity set", 1, "Decorations", "Attic", None, None, "", f"{today.year}-01-06", "850", "", "Ladies' rosary group"),
+        ("Fire extinguisher 6 kg", 4, "Safety", "Church, hall, sacristy", None, None, "", "2020-02-01", "45", "10", ""),
     ]
     item_ids = {}
-    for name, qty, cat, loc, shape, colors, serial, bought, value in items:
+    for name, qty, cat, loc, shape, colors, serial, bought, value, life, donor in items:
         data = {"name": name, "quantity": str(qty), "category": cat, "location": loc,
                 "condition": "good", "reservable": "on", "serial_number": serial,
-                "purchase_date": bought, "purchase_value": value}
+                "purchase_date": bought, "unit_value": value, "useful_life_years": life,
+                "acquisition": "donation" if donor else "purchase", "donor": donor}
         if shape:
             data["photos"] = (picture(*colors, shape), f"{shape}.jpg")
         item_ids[name] = new_id(admin.post("/items/new", data))
+    for name, loc, text in (
+            ("Parish hall", "Ground floor", "80 seats, kitchenette, projector screen."),
+            ("Meeting room", "Rectory, 1st floor", "12 seats, whiteboard."),
+            ("Church", "", "Book for weddings, concerts and recordings."),
+            ("Kitchen", "Parish hall", "Fridge, oven, dishes for 60 people.")):
+        item_ids[name] = new_id(admin.post("/items/new", {
+            "name": name, "kind": "space", "quantity": "1", "location": loc, "condition": "good",
+            "reservable": "on", "description": text}))
     # an edit, so the history shows something
     pid = item_ids["Projector Epson EB-X51"]
     admin.post(f"/items/{pid}/edit", {"name": "Projector Epson EB-X51", "quantity": "1",
                                       "category": "Audio & video", "location": "Parish hall",
                                       "condition": "fair", "reservable": "on",
                                       "serial_number": "X5QK123456", "purchase_date": "2023-03-14",
-                                      "purchase_value": "489 €",
+                                      "unit_value": "489", "useful_life_years": "5",
                                       "description": "Lamp replaced in 2025. Remote is in the drawer."})
 
     events = [
@@ -161,6 +172,33 @@ def main():
     for a in ("approve", "checkout"):
         maria.post(f"/reservations/{rid}/status", {"action": a})
     maria.post(f"/reservations/{rid}/status", {"action": "return", "condition": "good", "note": "All batteries charged"})
+    hall = item_ids["Parish hall"]
+    room = item_ids["Meeting room"]
+    r = jana.post("/reservations/new", {"item_id": hall, "quantity": "1", "start_at": f"{d(2)}T16:00", "end_at": f"{d(2)}T18:00", "purpose": "Children's catechesis"})
+    maria.post(f"/reservations/{new_id(r)}/status", {"action": "approve"})
+    tomas.post("/reservations/new", {"item_id": hall, "quantity": "1", "start_at": f"{d(30)}T07:00", "end_at": f"{d(30)}T18:00", "event_id": conf})
+    maria.post("/reservations/new", {"item_id": room, "quantity": "1", "start_at": f"{d(5)}T19:00", "end_at": f"{d(5)}T21:00", "purpose": "Pastoral council"})
+
+    # maintenance and inspections
+    ext = item_ids["Fire extinguisher 6 kg"]
+    tasks = [
+        (ext, "Fire extinguisher inspection", 365, d(-3), "", "Hasiči Trnava s.r.o."),
+        (item_ids["Projector Epson EB-X51"], "Clean the air filter", 180, d(5), "3", ""),
+        (item_ids["Wireless microphone Shure"], "Check batteries and charger", 30, d(12), "3", ""),
+        (hall, "Electrical inspection (revízia)", 1460, d(45), "", "Elektro Revízie SK"),
+        (item_ids["Church"], "Organ tuning", 365, d(120), "2", "Organ workshop Rieger"),
+    ]
+    task_ids = []
+    for item, title, every, due, who, firm in tasks:
+        task_ids.append(new_id(admin.post("/maintenance/tasks/new", {
+            "item_id": str(item), "title": title, "interval_days": str(every), "next_due": due,
+            "responsible_id": who, "contractor": firm})))
+    peter.post("/maintenance/log/new", {"task_id": str(task_ids[2]), "done_on": d(-18),
+                                        "performed_by": "Peter Horváth", "result": "issues",
+                                        "notes": "One battery no longer holds charge, ordered a new one."})
+    admin.post("/maintenance/log/new", {"item_id": str(item_ids["Mixing desk Yamaha MG10"]),
+                                        "done_on": d(-4), "performed_by": "Daniel Novák", "result": "ok",
+                                        "cost": "0 €", "notes": "Cleaned the channel 3 fader."})
     print("Demo data ready. Log in as admin /", PW)
 
 

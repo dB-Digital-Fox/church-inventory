@@ -15,7 +15,8 @@ STATUSES = ("pending", "approved", "rejected", "checked_out", "returned", "cance
 CONDITIONS = ("good", "fair", "damaged", "broken", "missing")
 FIELDS = ("item_id", "user_id", "event_id", "quantity", "start_at", "end_at", "purpose")
 
-BASE_SQL = ("SELECT r.*, i.name AS item_name, i.quantity AS item_quantity, u.full_name,"
+BASE_SQL = ("SELECT r.*, i.name AS item_name, i.quantity AS item_quantity, i.kind AS item_kind,"
+            " u.full_name,"
             " e.title AS event_title FROM reservations r JOIN items i ON i.id = r.item_id"
             " JOIN users u ON u.id = r.user_id LEFT JOIN events e ON e.id = r.event_id ")
 
@@ -84,8 +85,8 @@ def load(db, rid):
 
 
 def form_choices(db):
-    items = db.execute("SELECT id, name, quantity, location FROM items WHERE archived = 0"
-                       " AND reservable = 1 ORDER BY name").fetchall()
+    items = db.execute("SELECT id, name, quantity, location, kind FROM items WHERE archived = 0"
+                       " AND reservable = 1 ORDER BY kind, name COLLATE NOCASE").fetchall()
     events = db.execute(
         "SELECT id, title, event_date FROM events WHERE archived = 0 AND event_date >= date('now','-1 day')"
         " ORDER BY event_date LIMIT 100").fetchall()

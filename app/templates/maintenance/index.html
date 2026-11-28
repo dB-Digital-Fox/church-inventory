@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ _('Maintenance') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ _('Maintenance and inspections') }}</h1>
+  <div class="actions">
+    {% if can('maintenance.manage') %}<a class="button primary" href="{{ url_for('maintenance.task_new') }}">+ {{ _('Schedule maintenance') }}</a>{% endif %}
+    {% if can('maintenance.log') %}<a class="button" href="{{ url_for('maintenance.log_new') }}">+ {{ _('Record work done') }}</a>{% endif %}
+  </div>
+</div>
+<p class="muted">{{ _('Fire extinguishers, electrical checks, organ tuning, boiler service… Reminders go to managers and the responsible person 14, 7 and 1 day before the due date, and every week while overdue.') }}</p>
+<div class="stats">
+  <div class="stat"><b class="{{ 'bad' if overdue }}">{{ overdue|length }}</b><span>{{ _('Overdue') }}</span></div>
+  <div class="stat"><b>{{ soon|length }}</b><span>{{ _('Due in 30 days') }}</span></div>
+  <div class="stat"><b>{{ tasks|selectattr('active')|list|length }}</b><span>{{ _('Scheduled tasks') }}</span></div>
+</div>
+<section class="card">
+  <h2>{{ _('Scheduled') }}</h2>
+  {{ m.task_table(tasks) }}
+</section>
+<section class="card">
+  <h2>{{ _('Recently done') }}</h2>
+  {% if log %}{{ m.log_table(log) }}{% else %}<p class="muted">{{ _('Nothing recorded yet.') }}</p>{% endif %}
+</section>
+{% endblock %}

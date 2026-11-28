@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS items (
     condition       TEXT NOT NULL DEFAULT 'good',
     description     TEXT NOT NULL DEFAULT '',
     reservable      INTEGER NOT NULL DEFAULT 1,
+    kind            TEXT NOT NULL DEFAULT 'item',      -- 'item' or 'space' (room, hall, kitchen…)
+    acquisition     TEXT NOT NULL DEFAULT 'purchase',  -- 'purchase', 'donation', 'other'
+    donor           TEXT NOT NULL DEFAULT '',
+    unit_value      REAL,                              -- value of one piece in EUR
+    useful_life_years INTEGER NOT NULL DEFAULT 0,      -- straight-line depreciation, 0 = none
     archived        INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL,
     created_by      INTEGER REFERENCES users(id),
@@ -73,7 +78,7 @@ CREATE TABLE IF NOT EXISTS event_participants (
 -- Photos for items and events. Files are never deleted; "removing" a photo hides it.
 CREATE TABLE IF NOT EXISTS photos (
     id            INTEGER PRIMARY KEY,
-    entity        TEXT NOT NULL CHECK (entity IN ('item','event')),
+    entity        TEXT NOT NULL,                 -- 'item', 'event', 'maintenance'
     entity_id     INTEGER NOT NULL,
     filename      TEXT NOT NULL,
     original_name TEXT NOT NULL DEFAULT '',
@@ -103,6 +108,39 @@ CREATE TABLE IF NOT EXISTS reservations (
     updated_by    INTEGER REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS reservations_item ON reservations(item_id, start_at, end_at);
+
+-- Recurring maintenance and inspections (fire extinguishers, electrical checks, tuning…).
+CREATE TABLE IF NOT EXISTS maintenance_tasks (
+    id             INTEGER PRIMARY KEY,
+    item_id        INTEGER NOT NULL REFERENCES items(id),
+    title          TEXT NOT NULL,
+    interval_days  INTEGER NOT NULL DEFAULT 365,   -- 0 = one-off
+    next_due       TEXT NOT NULL,                  -- YYYY-MM-DD
+    responsible_id INTEGER REFERENCES users(id),
+    contractor     TEXT NOT NULL DEFAULT '',
+    notes          TEXT NOT NULL DEFAULT '',
+    active         INTEGER NOT NULL DEFAULT 1,
+    created_at     TEXT NOT NULL,
+    created_by     INTEGER REFERENCES users(id),
+    updated_at     TEXT NOT NULL,
+    updated_by     INTEGER REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_log (
+    id           INTEGER PRIMARY KEY,
+    task_id      INTEGER REFERENCES maintenance_tasks(id),
+    item_id      INTEGER NOT NULL REFERENCES items(id),
+    done_on      TEXT NOT NULL,                    -- YYYY-MM-DD
+    performed_by TEXT NOT NULL DEFAULT '',         -- person or company
+    result       TEXT NOT NULL DEFAULT 'ok' CHECK (result IN ('ok','issues','failed')),
+    cost         TEXT NOT NULL DEFAULT '',
+    notes        TEXT NOT NULL DEFAULT '',
+    created_at   TEXT NOT NULL,
+    created_by   INTEGER REFERENCES users(id),
+    updated_at   TEXT NOT NULL,
+    updated_by   INTEGER REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS maintenance_log_item ON maintenance_log(item_id, done_on);
 
 -- Append-only, hash-chained audit log.
 CREATE TABLE IF NOT EXISTS audit_log (

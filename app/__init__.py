@@ -12,7 +12,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from . import auth, i18n, utils
 from .db import close_db, connect, get_state, init_db, set_state
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def _bool(value, default=False):
@@ -125,6 +125,8 @@ def create_app(overrides=None):
 
     app.jinja_env.filters["dt"] = utils.fmt_dt
     app.jinja_env.filters["local"] = utils.fmt_local
+    from .assets import money
+    app.jinja_env.filters["money"] = money
 
     @app.errorhandler(400)
     @app.errorhandler(403)
@@ -133,8 +135,10 @@ def create_app(overrides=None):
     def _error(err):
         return render_template("error.html", error=err), err.code
 
-    from .views import admin, audit_views, calendar, events, items, main, reservations, users
-    for module in (main, items, events, reservations, users, audit_views, calendar, admin):
+    from .views import (admin, audit_views, calendar, events, items, main, maintenance, reports,
+                        reservations, users)
+    for module in (main, items, events, reservations, users, audit_views, calendar, admin,
+                   maintenance, reports):
         app.register_blueprint(module.bp)
 
     from . import cli

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% import 'macros.html' as m with context %}
+{% block title %}{{ entry.task_title or _('Maintenance') }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>🔧 {{ entry.task_title or _('Maintenance') }} — {{ entry.done_on|local }}</h1>
+  {% if can_edit %}<div class="actions"><a class="button" href="{{ url_for('maintenance.log_edit', log_id=entry.id) }}">{{ _('Edit') }}</a></div>{% endif %}
+</div>
+<section class="card">
+  <dl class="props">
+    <dt>{{ _('Item or room') }}</dt><dd><a href="{{ url_for('items.detail', item_id=entry.item_id) }}">{{ entry.item_name }}</a></dd>
+    {% if entry.task_id %}<dt>{{ _('Task') }}</dt><dd><a href="{{ url_for('maintenance.task_detail', task_id=entry.task_id) }}">{{ entry.task_title }}</a></dd>{% endif %}
+    <dt>{{ _('Done by') }}</dt><dd>{{ entry.performed_by or '—' }}</dd>
+    <dt>{{ _('Result') }}</dt><dd><span class="status r-{{ entry.result }}">{{ _(entry.result) }}</span></dd>
+    <dt>{{ _('Cost') }}</dt><dd>{{ entry.cost or '—' }}</dd>
+    <dt>{{ _('Logged by') }}</dt><dd>{{ entry.creator_name or '—' }}</dd>
+  </dl>
+  {% if entry.notes %}<div class="writeup">{{ entry.notes }}</div>{% endif %}
+  {{ m.meta(entry) }}
+</section>
+<section class="card">
+  <h2>{{ _('Photos') }}</h2>
+  {{ m.photo_grid(photos, can_hide) }}
+  {% if not photos %}<p class="muted">{{ _('No photos yet.') }}</p>{% endif %}
+</section>
+<section class="card">{{ m.history_list(history) }}</section>
+{% endblock %}

@@ -144,19 +144,22 @@ def dashboard():
             res_sql + "WHERE r.status = 'pending' ORDER BY r.start_at").fetchall())
         overdue = db.execute(res_sql + "WHERE r.status = 'checked_out' AND r.end_at < ?"
                              " ORDER BY r.end_at", (now,)).fetchall()
+    from .maintenance import due_tasks
+    maintenance_due = due_tasks(db, within_days=14) if can("maintenance.log") else []
     activity = []
     if can("audit.view"):
         activity = [audit.with_changes(r) for r in db.execute(
             "SELECT * FROM audit_log WHERE action NOT IN ('login','login_failed')"
             " ORDER BY id DESC LIMIT 10")]
     counts = {
-        "item_count": db.execute("SELECT COUNT(*) FROM items WHERE archived = 0").fetchone()[0],
+        "item_count": db.execute("SELECT COUNT(*) FROM items WHERE archived = 0 AND kind = 'item'").fetchone()[0],
         "event_count": db.execute("SELECT COUNT(*) FROM events WHERE archived = 0").fetchone()[0],
         "active_res": db.execute("SELECT COUNT(*) FROM reservations WHERE status IN"
                                  " ('pending','approved','checked_out')").fetchone()[0],
     }
     return render_template("dashboard.html", upcoming=upcoming, recent=recent, mine=mine,
                            pending=pending, overdue=overdue, activity=activity, counts=counts,
+                           maintenance_due=maintenance_due,
                            now=now)
 
 

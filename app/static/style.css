@@ -138,3 +138,9 @@ code.big { font-size: 1.3rem; }
 .footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 2rem 1rem; }
 .footer .linkbutton { padding: 0; }
 table.audit td:nth-child(5) { min-width: 15rem; }
+.s-gift { color: #be185d; border-color: #be185d; }
+.r-ok { color: var(--ok); border-color: var(--ok); }
+.r-issues { color: var(--warn); border-color: var(--warn); }
+.r-failed { color: var(--danger); border-color: var(--danger); }
+.stat b.bad { color: var(--danger); }
+optgroup { font-weight: 600; }

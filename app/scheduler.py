@@ -61,6 +61,20 @@ def send_daily_notifications(app):
                        qty=r["rqty"], end=fmt_local(r["end_at"]))
                     + (f"\n{base}/reservations/{r['rid']}" if base else "")))
 
+            from .views.maintenance import TASK_SQL, reminder_due
+            for t in db.execute(TASK_SQL + "WHERE t.active = 1 AND i.archived = 0").fetchall():
+                if not reminder_due(t, now.date()):
+                    continue
+                people = {u["id"]: u for u in db.execute(
+                    "SELECT * FROM users WHERE active = 1 AND (role IN ('admin','manager') OR id = ?)",
+                    (t["responsible_id"] or 0,)).fetchall()}
+                overdue = t["next_due"] < now.strftime("%Y-%m-%d")
+                deliver(cfg, list(people.values()), lambda lang, t=t, overdue=overdue: (
+                    tr("Maintenance overdue: {title}", lang, title=t["title"]) if overdue
+                    else tr("Maintenance due: {title}", lang, title=t["title"]),
+                    tr("{item}: due on {date}.", lang, item=t["item_name"], date=fmt_local(t["next_due"]))
+                    + (f"\n{base}/maintenance/tasks/{t['id']}" if base else "")))
+
             auditors = db.execute(
                 "SELECT * FROM users WHERE role = 'auditor' AND active = 1").fetchall()
             if auditors:

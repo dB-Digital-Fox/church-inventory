@@ -322,3 +322,199 @@ def test_handed_out_status_is_readable(admin):
     admin.post(f"/reservations/{rid}/status", {"action": "checkout"})
     page = admin.get(f"/reservations/{rid}").get_data(as_text=True)
     assert "handed out" in page and ">checked_out<" not in page
+
+
+# --- rooms and spaces --------------------------------------------------------------------------
+
+def test_space_booking_and_clash(admin, app):
+    hall = add_item(admin, "Parish hall", kind="space", location="Ground floor")
+    assert db_of(app).execute("SELECT kind FROM items WHERE id = ?", (hall,)).fetchone()[0] == "space"
+    rooms = admin.get("/items/?kind=space").get_data(as_text=True)
+    assert "Parish hall" in rooms
+    assert "Parish hall" not in admin.get("/items/").get_data(as_text=True)
+    assert reserve(admin, hall, "2026-12-10T17:00", "2026-12-10T19:00").status_code == 302
+    r = reserve(admin, hall, "2026-12-10T18:00", "2026-12-10T20:00")
+    assert r.status_code == 200 and "clashes" in r.get_data(as_text=True)
+    form = admin.get("/reservations/new").get_data(as_text=True)
+    assert "<optgroup" in form and "Parish hall" in form
+    token = db_of(app).execute("SELECT ical_token FROM users WHERE id = 1").fetchone()[0]
+    assert "🏛 Parish hall" in Client(app).get(f"/calendar/{token}.ics").get_data(as_text=True)
+
+
+# --- maintenance -------------------------------------------------------------------------------
+
+def add_task(c, item_id, title="Fire extinguisher check", interval=365, next_due="2026-12-01", **extra):
+    data = {"item_id": str(item_id), "title": title, "interval_days": str(interval),
+            "next_due": next_due}
+    data.update(extra)
+    r = c.post("/maintenance/tasks/new", data)
+    assert r.status_code == 302, r.get_data(as_text=True)
+    return int(r.headers["Location"].split("/")[-1])
+
+
+def test_maintenance_task_and_log_advance_due_date(admin, app):
+    item_id = add_item(admin, "Organ")
+    task_id = add_task(admin, item_id, "Organ tuning", interval=180, next_due="2026-11-01")
+    assert "Organ tuning" in admin.get("/maintenance/").get_data(as_text=True)
+    assert "Organ tuning" in admin.get("/").get_data(as_text=True)  # overdue on the dashboard
+    member = login_as(app, admin, "jan", "member")
+    assert member.post("/maintenance/tasks/new", {"item_id": str(item_id), "title": "x",
+                                                  "interval_days": "1",
+                                                  "next_due": "2026-12-01"}).status_code == 403
+    r = member.post("/maintenance/log/new", {"task_id": str(task_id), "done_on": "2026-11-20",
+                                             "performed_by": "Organ Ltd.", "result": "issues",
+                                             "cost": "120 €", "notes": "one pipe replaced",
+                                             "photos": (jpeg_bytes(), "pipe.jpg")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 302
+    log_id = int(r.headers["Location"].split("/")[-1])
+    db = db_of(app)
+    assert db.execute("SELECT next_due FROM maintenance_tasks WHERE id = ?",
+                      (task_id,)).fetchone()[0] == "2027-05-19"
+    assert db.execute("SELECT COUNT(*) FROM photos WHERE entity = 'maintenance' AND entity_id = ?",
+                      (log_id,)).fetchone()[0] == 1
+    page = admin.get(f"/items/{item_id}").get_data(as_text=True)
+    assert "Organ tuning" in page and "Organ Ltd." in page
+    # future dates are refused
+    r = member.post("/maintenance/log/new", {"task_id": str(task_id), "done_on": "2099-01-01"})
+    assert r.status_code == 200 and "future" in r.get_data(as_text=True)
+    # the person who logged it can edit; the change is in the history
+    r = member.post(f"/maintenance/log/{log_id}/edit", {"done_on": "2026-11-20",
+                                                         "performed_by": "Organ Ltd.",
+                                                         "result": "ok", "notes": "fixed"})
+    assert r.status_code == 302
+    actions = [a for (a,) in db.execute("SELECT action FROM audit_log WHERE entity = 'maintenance'"
+                                        " AND entity_id = ? ORDER BY id", (log_id,))]
+    assert actions == ["create", "photo_add", "update"]
+    other = login_as(app, admin, "peter", "member")
+    assert other.post(f"/maintenance/log/{log_id}/edit", {"done_on": "2026-11-20"}).status_code == 403
+
+
+def test_one_off_task_is_closed_when_done(admin, app):
+    item_id = add_item(admin, "Roof")
+    task_id = add_task(admin, item_id, "Repair gutter", interval=0, next_due="2026-11-25")
+    admin.post("/maintenance/log/new", {"task_id": str(task_id), "done_on": "2026-11-26"})
+    assert db_of(app).execute("SELECT active FROM maintenance_tasks WHERE id = ?",
+                              (task_id,)).fetchone()[0] == 0
+    # a task can be switched off by unticking "active"
+    task2 = add_task(admin, item_id, "Clean chimney")
+    admin.post(f"/maintenance/tasks/{task2}/edit", {"item_id": str(item_id), "title": "Clean chimney",
+                                                     "interval_days": "365", "next_due": "2026-12-01"})
+    assert db_of(app).execute("SELECT active FROM maintenance_tasks WHERE id = ?",
+                              (task2,)).fetchone()[0] == 0
+
+
+def test_reminder_schedule():
+    from datetime import date
+    from app.views.maintenance import reminder_due
+    task = {"next_due": "2026-12-15"}
+    hits = [d for d in range(1, 32) if reminder_due(task, date(2026, 12, d))]
+    assert hits == [1, 8, 14, 15, 22, 29]  # 14, 7, 1 days before, on the day, weekly overdue
+    assert not reminder_due({"next_due": ""}, date(2026, 12, 1))
+
+
+def test_maintenance_reminders_are_sent(admin, app, monkeypatch):
+    from datetime import datetime
+    from app import scheduler, utils
+    app.config.update(SMTP_HOST="smtp.test", SMTP_FROM="church@test")
+    item_id = add_item(admin, "Boiler")
+    add_task(admin, item_id, "Boiler service", next_due="2026-12-08")
+    add_task(admin, item_id, "Boiler inspection", next_due="2026-12-09")
+    sent = []
+    monkeypatch.setattr(scheduler, "deliver", lambda cfg, people, build: sent.extend(
+        (p["username"],) + build("en") for p in people))
+    monkeypatch.setattr(utils, "now_local", lambda: datetime(2026, 12, 1, 8, 0))
+    scheduler.send_daily_notifications(app)
+    subjects = [subject for _u, subject, _b in sent]
+    assert "Maintenance due: Boiler service" in subjects  # 7 days before
+    assert not any("inspection" in s for s in subjects)  # 8 days before: no reminder
+
+
+# --- donations and asset value -----------------------------------------------------------------
+
+def test_depreciation_and_book_value():
+    from datetime import date
+    from app.assets import book_value, depreciation_in_year, money, parse_money, total_value
+    item = {"unit_value": 1000.0, "quantity": 2, "purchase_date": "2024-01-01", "useful_life_years": 4}
+    assert total_value(item) == 2000.0
+    assert book_value(item, date(2024, 1, 1)) == 2000.0
+    assert abs(book_value(item, date(2026, 1, 1)) - 1000.0) < 2
+    assert book_value(item, date(2030, 1, 1)) == 0.0
+    assert abs(depreciation_in_year(item, 2025) - 500.0) < 2
+    assert depreciation_in_year(item, 2023) == 0.0
+    no_life = dict(item, useful_life_years=0)
+    assert book_value(no_life, date(2030, 1, 1)) == 2000.0
+    assert parse_money("1 234,50 €") == 1234.5 and parse_money("") is None
+    assert money(1234.5) == "1\u00a0234,50 €" and money(None) == "—"
+
+
+def test_donation_and_assets_report(admin, app):
+    add_item(admin, "Chalice", acquisition="donation", donor="Novák family", unit_value="1 200,00",
+             useful_life_years="0", purchase_date="2026-03-01")
+    add_item(admin, "Laptop", acquisition="purchase", donor="ignored", unit_value="800",
+             useful_life_years="4", purchase_date="2026-01-01")
+    add_item(admin, "Old chair")  # no value
+    db = db_of(app)
+    assert db.execute("SELECT donor FROM items WHERE name = 'Laptop'").fetchone()[0] == ""
+    r = admin.post("/items/new", {"name": "Bad", "quantity": "1", "condition": "good",
+                                  "unit_value": "abc"})
+    assert r.status_code == 200
+    page = admin.get("/reports/assets?year=2026").get_data(as_text=True)
+    assert "Novák family" in page and "1\u00a0200,00 €" in page
+    csv_text = admin.get("/reports/assets?year=2026&format=csv").get_data(as_text=True)
+    assert "Chalice" in csv_text and "donation" in csv_text and "book_value_2026-12-31_eur" in csv_text
+    assert db.execute("SELECT COUNT(*) FROM audit_log WHERE action = 'export' AND entity = 'report'"
+                      ).fetchone()[0] == 2
+    auditor = login_as(app, admin, "audit", "auditor")
+    assert auditor.get("/reports/assets").status_code == 200
+    member = login_as(app, admin, "mia", "member")
+    assert member.get("/reports/assets").status_code == 403
+
+
+def test_old_database_is_migrated(tmp_path):
+    """A database made by v0.1 gets the new columns, keeps values and accepts maintenance photos."""
+    import os
+    import sqlite3
+    from app.db import init_db
+    path = str(tmp_path / "old.db")
+    conn = sqlite3.connect(path)
+    with open(os.path.join(os.path.dirname(__file__), "schema_v01.sql"), encoding="utf-8") as f:
+        conn.executescript(f.read())
+    now = "2026-01-01T00:00:00Z"
+    conn.execute("INSERT INTO users (username, full_name, role, password_hash, ical_token, created_at,"
+                 " updated_at) VALUES ('a', 'A', 'admin', 'x', 't', ?, ?)", (now, now))
+    conn.execute("INSERT INTO items (name, purchase_value, created_at, updated_at)"
+                 " VALUES ('Piano', '2 500,50 €', ?, ?)", (now, now))
+    conn.execute("INSERT INTO items (name, purchase_value, created_at, updated_at)"
+                 " VALUES ('Cross', 'priceless', ?, ?)", (now, now))
+    conn.execute("INSERT INTO photos (entity, entity_id, filename, sha256, uploaded_at)"
+                 " VALUES ('item', 1, 'abc.jpg', 'h', ?)", (now,))
+    conn.commit()
+    conn.close()
+    init_db(path)
+    init_db(path)  # running again is harmless
+    conn = connect(path)
+    rows = {r["name"]: r for r in conn.execute("SELECT * FROM items")}
+    assert rows["Piano"]["unit_value"] == 2500.5 and rows["Piano"]["kind"] == "item"
+    assert rows["Cross"]["unit_value"] is None and rows["Cross"]["acquisition"] == "purchase"
+    assert conn.execute("SELECT filename FROM photos WHERE id = 1").fetchone()[0] == "abc.jpg"
+    conn.execute("INSERT INTO photos (entity, entity_id, filename, sha256, uploaded_at)"
+                 " VALUES ('maintenance', 1, 'def.jpg', 'h', ?)", (now,))
+    assert conn.execute("SELECT COUNT(*) FROM maintenance_tasks").fetchone()[0] == 0
+
+
+def test_new_pages_render(admin, app):
+    item_id = add_item(admin, "Bell")
+    task_id = add_task(admin, item_id, "Bell rope check")
+    admin.post("/maintenance/log/new", {"task_id": str(task_id), "done_on": "2026-11-20"})
+    for lang in ("en", "sk"):
+        admin.post(f"/language/{lang}", {"next": "/"})
+        for url in ("/items/?kind=space", "/items/new?kind=space", "/items/?acquisition=donation",
+                    "/maintenance/", "/maintenance/tasks/new", f"/maintenance/tasks/{task_id}",
+                    f"/maintenance/tasks/{task_id}/edit", "/maintenance/log/new",
+                    f"/maintenance/log/new?task_id={task_id}", "/maintenance/log/1",
+                    "/maintenance/log/1/edit", "/reports/", "/reports/assets",
+                    f"/items/{item_id}", "/audit/"):
+            r = admin.get(url)
+            assert r.status_code == 200, (lang, url)
+            assert "built-in method" not in r.get_data(as_text=True), (lang, url)

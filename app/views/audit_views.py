@@ -18,6 +18,8 @@ ENTITY_LINKS = {
     "event": ("events.detail", "event_id"),
     "reservation": ("reservations.detail", "rid"),
     "user": ("users.detail", "user_id"),
+    "maintenance_task": ("maintenance.task_detail", "task_id"),
+    "maintenance": ("maintenance.log_detail", "log_id"),
 }
 
 

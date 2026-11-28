@@ -24,6 +24,11 @@ DYNAMIC = [
     "return_note", "full_name", "email", "phone", "role", "active", "language", "username",
     "notify_email", "notify_whatsapp", "photo", "sha256", "name_sk", "name_en", "color",
     "yes", "NO", "Reservation approved", "Reservation rejected",
+    # v0.2: rooms, maintenance, asset value
+    "purchase", "donation", "other", "ok", "issues", "failed", "maintenance_task", "maintenance",
+    "report", "kind", "acquisition", "donor", "unit_value", "useful_life_years", "interval_days",
+    "next_due", "responsible_id", "contractor", "notes", "done_on", "performed_by", "result",
+    "cost", "task_id",
 ]
 
 

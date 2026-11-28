@@ -2,13 +2,17 @@
 {% import 'macros.html' as m with context %}
 {% block title %}{{ _('Edit reservation') if existing else _('Reserve item') }}{% endblock %}
 {% block content %}
-<h1>{{ _('Edit reservation') if existing else _('Reserve item') }}</h1>
+<h1>{{ _('Edit reservation') if existing else _('Reserve an item or room') }}</h1>
 <form method="post" class="card" id="resform" data-availability="{{ url_for('reservations.availability') }}" data-exclude="{{ existing.id if existing else '' }}">
   {{ m.csrf() }}
   <div class="grid2">
     <label>{{ _('Item') }} *<select name="item_id" required>
       <option value="">—</option>
-      {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if (form.item_id|string) == (i.id|string) }}>{{ i.name }} ({{ _('{n} pcs', n=i.quantity) }}{% if i.location %}, {{ i.location }}{% endif %})</option>{% endfor %}
+      {% for kind, group in items|groupby('kind')|reverse %}
+      <optgroup label="{{ _('Rooms and spaces') if kind == 'space' else _('Items') }}">
+      {% for i in group %}<option value="{{ i.id }}" {{ 'selected' if (form.item_id|string) == (i.id|string) }}>{{ i.name }}{% if kind != 'space' %} ({{ _('{n} pcs', n=i.quantity) }}{% if i.location %}, {{ i.location }}{% endif %}){% endif %}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
     </select></label>
     <label>{{ _('Quantity') }} *<input type="number" name="quantity" min="1" required value="{{ form.quantity or 1 }}"></label>
     <label>{{ _('From') }} *<input type="datetime-local" name="start_at" required value="{{ form.start_at or '' }}"></label>
